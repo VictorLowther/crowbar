@@ -491,7 +491,7 @@ update_barclamp_pkg_cache() {
         fi
         cache_add "$CHROOT/$CHROOT_PKGDIR/$pkg" "$bc_cache/$pkg"
     done < <(cd "$CHROOT/$CHROOT_PKGDIR"; find -type f)
-    touch "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    __make_barclamp_pkg_metadata "$1"
 }
 
 # Update the gem cache for a barclamp
