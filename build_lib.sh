@@ -542,6 +542,10 @@ update_barclamp_gem_cache() {
     done < <(find "$CHROOT/$CHROOT_GEMDIR" -type f)
 }
 
+update_barclamp_pip_cache() {
+    : ;
+}
+
 # Fetch any raw packages we do not already have.
 update_barclamp_raw_pkg_cache() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
@@ -623,6 +627,10 @@ barclamp_gem_cache_needs_update() {
         return 0
     done
     return 1
+}
+
+barclamp_pip_cache_needs_update() {
+    : ;
 }
 
 # CHeck to see if we are missing any raw packages.
