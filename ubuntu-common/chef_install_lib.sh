@@ -18,19 +18,19 @@ install_base_packages() {
     mkdir -p "/tftpboot/$OS_TOKEN/crowbar-extra"
     mkdir -p /etc/apt/sources.list.d
     (cd "/tftpboot/$OS_TOKEN/crowbar-extra";
-	# Find all the staged barclamps
-	for bc in "/opt/dell/barclamps/"*; do
-	    [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
-	    # Link them in.
-	    ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
-	    echo "deb file:/tftpboot/$OS_TOKEN/crowbar-extra/${bc##*/} /" > \
-		/etc/apt/sources.list.d/10-barclamp-${bc##*/}.list
-	done
+        # Find all the staged barclamps
+        for bc in "/opt/dell/barclamps/"*; do
+            [[ -d $bc/cache/$OS_TOKEN/pkgs ]] || continue
+            # Link them in.
+            ln -s "$bc/cache/$OS_TOKEN/pkgs" "${bc##*/}"
+            echo "deb file:/tftpboot/$OS_TOKEN/crowbar-extra/${bc##*/} /" > \
+                /etc/apt/sources.list.d/10-barclamp-${bc##*/}.list
+        done
     )
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
     log_to apt apt-get -y install rubygems gcc ruby \
-	libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev
+        libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev
 }
 
 bring_up_chef() {
@@ -49,7 +49,7 @@ bring_up_chef() {
     cp -f patches/rubygems.rb /usr/lib/ruby/vendor_ruby/chef/provider/package
 
     # increase chef-solr index field size
-    perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml 
+    perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
     log_to svc service chef-server restart
 }
 
