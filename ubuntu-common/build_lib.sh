@@ -109,7 +109,9 @@ __barclamp_pkg_metadata_needs_update() (
 )
 
 __make_barclamp_pkg_metadata() {
+    in_chroot rm -f /mnt/Packages.gz
     in_chroot /bin/bash -c 'cd /mnt; dpkg-scanpackages -m . 2>/dev/null |gzip -9 >Packages.gz'
+    in_chroot /bin/bash
     sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
 	in_cache git add "barclamps/$1/$OS_TOKEN/pkgs/Packages.gz"
