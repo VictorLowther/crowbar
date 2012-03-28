@@ -29,7 +29,7 @@ install_base_packages() {
     )
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
-    log_to apt apt-get -y install rubygems gcc ruby \
+    log_to apt apt-get -y install rubygems gcc ruby tcpdump \
         libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev \
         python-pip python-virtualenv virtualenvwrapper
 }
@@ -39,16 +39,7 @@ bring_up_chef() {
     service chef-client stop
     killall chef-client
     log_to apt apt-get -y install chef-server chef-server-webui
-
-    # HACK AROUND CHEF-2005
-    cp patches/data_item.rb /usr/share/chef-server-api/app/controllers
-    # HACK AROUND CHEF-2005
-    rl=$(find /usr/lib/ruby -name run_list.rb)
-    cp -f "$rl" "$rl.bak"
-    cp -f patches/run_list.rb "$rl"
-    # Make the Rubygems provider in Chef respect gemrc files.
-    cp -f patches/rubygems.rb /usr/lib/ruby/vendor_ruby/chef/provider/package
-
+    (cd "$DVD_PATH/extra/patches"; chmod +x ./patch.sh ; ./patch.sh) || exit 1
     # increase chef-solr index field size
     perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
     log_to svc service chef-server restart
