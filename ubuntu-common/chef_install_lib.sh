@@ -30,7 +30,8 @@ install_base_packages() {
     log_to apt apt-get update
     log_to apt apt-get -y remove apparmor
     log_to apt apt-get -y install rubygems gcc ruby tcpdump \
-        libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev
+        libcurl4-gnutls-dev build-essential ruby-dev libxml2-dev zlib1g-dev \
+        python-pip python-virtualenv virtualenvwrapper
 }
 
 bring_up_chef() {
@@ -41,7 +42,6 @@ bring_up_chef() {
     (cd "$DVD_PATH/extra/patches"; chmod +x ./patch.sh ; ./patch.sh) || exit 1
     # increase chef-solr index field size
     perl -i -ne 'if ($_ =~ /<maxFieldLength>(.*)<\/maxFieldLength>/){ print "<maxFieldLength>200000</maxFieldLength> \n" } else { print } '  /var/lib/chef/solr/conf/solrconfig.xml
-
     log_to svc service chef-server restart
 }
 

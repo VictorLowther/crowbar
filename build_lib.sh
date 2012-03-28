@@ -19,7 +19,7 @@ ulimit -Sn unlimited
 # Value = whatever interesting thing we are looking for.
 declare -A BC_DEPS BC_GROUPS BC_PKGS BC_EXTRA_FILES BC_OS_DEPS BC_GEMS
 declare -A BC_REPOS BC_PPAS BC_RAW_PKGS BC_BUILD_PKGS BC_QUERY_STRINGS
-declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS
+declare -A BC_SMOKETEST_DEPS BC_SMOKETEST_TIMEOUTS BC_BUILD_CMDS BC_PIPS
 declare -A BC_SUPERCEDES
 
 # Build OS independent query strings.
@@ -29,6 +29,7 @@ BC_QUERY_STRINGS["extra_files"]="extra_files"
 BC_QUERY_STRINGS["build_cmd"]="build_cmd"
 BC_QUERY_STRINGS["os_support"]="barclamp os_support"
 BC_QUERY_STRINGS["gems"]="gems pkgs"
+BC_QUERY_STRINGS["pips"]="pips pkgs"
 BC_QUERY_STRINGS["test_deps"]="smoketest requires"
 BC_QUERY_STRINGS["test_timeouts"]="smoketest timeout"
 BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
@@ -61,6 +62,7 @@ get_barclamp_info() {
                     extra_files) BC_EXTRA_FILES["$bc"]+="$line\n";;
                     os_support) BC_OS_SUPPORT["$bc"]+="$line ";;
                     gems) BC_GEMS["$bc"]+="$line ";;
+                    pips) BC_PIPS["$bc"]+="$line ";;
                     repos|os_repos) BC_REPOS["$bc"]+="$line\n";;
                     ppas|os_ppas) [[ $PKG_TYPE = debs ]] || \
                         die "Cannot declare a PPA for $PKG_TYPE!"
@@ -553,6 +555,10 @@ update_barclamp_gem_cache() {
     done < <(find "$CHROOT/$CHROOT_GEMDIR" -type f)
 }
 
+update_barclamp_pip_cache() {
+    : ;
+}
+
 # Fetch any raw packages we do not already have.
 update_barclamp_raw_pkg_cache() {
     local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
@@ -636,6 +642,10 @@ barclamp_gem_cache_needs_update() {
         return 0
     done
     return 1
+}
+
+barclamp_pip_cache_needs_update() {
+    : ;
 }
 
 # CHeck to see if we are missing any raw packages.
