@@ -443,7 +443,7 @@ do_crowbar_build() {
     for bc in "${BARCLAMPS[@]}"; do
         is_barclamp "$bc" || die "Cannot find barclamp $bc!"
         debug "Staging $bc barclamp."
-        for cache in pkg gem raw_pkg file; do
+        for cache in pkg gem pip raw_pkg file; do
             checker="barclamp_${cache}_cache_needs_update"
             updater="update_barclamp_${cache}_cache"
             [[ $(type $checker) = "$checker is a function"* ]] || \
@@ -454,7 +454,7 @@ do_crowbar_build() {
                 [[ $ALLOW_CACHE_UPDATE = true ]] || \
                     die "Need up update $cache cache for $bc, but updates are disabled."
                 debug "Updating $cache cache for $bc"
-                [[ $cache =~ ^(pkg|gem)$ ]] && make_chroot
+                [[ $cache =~ ^(pkg|gem|pip)$ ]] && make_chroot
                 $updater "$bc"
             fi
         done
