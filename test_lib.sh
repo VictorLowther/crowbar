@@ -1115,7 +1115,7 @@ run_test() {
             bind-nic) shift;
                 [[ -d /sys/class/net/$1 ]] || \
                     die "$1 is not a network interface!"
-                is_in "$2" "${CROWBAR_BRIDGES[*]}" || \
+                is_in "$2" "${SMOKETEST_BRIDGES[*]}" || \
                     die "$2 is not a bridge of ours!"
                 PHYSICAL_INTERFACES+=("$1,$2")
                 shift;;
