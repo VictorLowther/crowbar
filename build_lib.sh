@@ -38,7 +38,6 @@ BC_QUERY_STRINGS["supercedes"]="barclamp supercedes"
 ALLOW_CACHE_UPDATE=false
 ALLOW_CACHE_METADATA_UPDATE=false
 
-
 get_barclamp_info() {
     local bc yml_file line query newdeps dep d i
     local new_barclamps=()
@@ -159,21 +158,7 @@ with_build_lock() {
     "$@"
 } 65>/tmp/.build_crowbar.lock
 
-# Get a list of all the barclamps that a specific branch refers to.
-barclamps_in_branch() {
-    local b bc mode dtype sha
-    local -A res
-    for b in "$@"; do
-        in_repo branch_exists "$b" || \
-            die "Branch $b does not exist in the Crowbar repo!"
-        while read mode dtype sha bc; do
-            [[ $mode = 160000 && $dtype = commit ]] || continue
-            res[${bc##*/}]=${bc##*/}
-        done < <(in_repo git ls-tree -r "$b" barclamps)
-    done
-    printf "%s\n" "${res[@]}" |sort
-}
-
+flat_checkout() [[ -d $CROWBAR_DIR/releases ]]
 
 # Our general cleanup function.  It is called as a trap whenever the
 # build script exits, and it's job is to make sure we leave the local
@@ -779,16 +764,11 @@ in_cache() (
 )
 
 # Check to see if something is a barclamp.
-is_barclamp() { [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]; }
+is_barclamp() [[ -f "$CROWBAR_DIR/barclamps/$1/crowbar.yml" ]]
 in_barclamp() {
     (   cd "$CROWBAR_DIR/barclamps/$1"
         shift
         "$@")
-}
-
-in_ci_barclamp() {
-    [[ $CI_BARCLAMP ]] || die "No continuous integration barclamp!"
-    in_barclamp "$CI_BARCLAMP" "$@"
 }
 
 # Build our ISO image.

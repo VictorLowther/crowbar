@@ -186,12 +186,7 @@ for cmd in sudo chroot mkisofs ruby curl; do
         die 1 "Please install $cmd before trying to build Crowbar."
 done
 
-# Figure out what our current branch is, in case we need to merge
-# other branches in to the iso to create our build.
-CURRENT_BRANCH="$(in_repo git symbolic-ref HEAD)" || \
-    die "Not on a branch we can build from!"
-CURRENT_BRANCH=${CURRENT_BRANCH#refs/heads/}
-[[ $CURRENT_BRANCH ]] || die "Not on a branch we can merge from!"
+flat_checkout || die "Checkout must be flat before starting build!"
 
 # Parse our options.
 while [[ $1 ]]; do
@@ -230,13 +225,6 @@ while [[ $1 ]]; do
                 unset need_update || : &>/dev/null
                 shift
             done;;
-        # Pull in additional barclamps.
-        --barclamps)
-            shift
-            while [[ $1 && $1 != -* ]]; do
-                BARCLAMPS+=("$1")
-                shift
-            done;;
         --test)
             # Run tests on the newly-created repository.
             # The test framework does the heavy lifting.
@@ -247,21 +235,6 @@ while [[ $1 ]]; do
                 test_params+=("$1")
                 shift
             done;;
-        --ci)
-            [[ $CI_BARCLAMP ]] && die "Already asked to perform CI on $CI_BARCLAMP, and we can only do one at a time."
-            shift
-            is_barclamp "$1" || \
-                die "$1 is not a barclamp, cannot perform CI testing on it."
-            CI_BARCLAMP="$1"
-            shift
-            if [[ $1 && $1 != -* ]]; then
-                in_ci_barclamp branch_exists "$1" || \
-                    die "$1 is not a branch in $CI_BARCLAMP, cannot perform integration testing!"
-                CI_BRANCH="$1"
-                shift
-            else
-                CI_BRANCH="master"
-            fi;;
         --shrink)
             # Ask that the generated ISO be shrunk down to the mininim
             # needed to deploy Crowbar.
@@ -348,27 +321,12 @@ do_crowbar_build() {
     # Name of the built iso we will build
     [[ $BUILT_ISO ]] || BUILT_ISO="crowbar-${VERSION}.iso"
 
-    if [[ $CI_BARCLAMP ]]; then
-        in_ci_barclamp git checkout -b ci-throwaway-branch || \
-            die "Could not check out throwaway branch for CI testing on $CI_BARCLAMP"
-        in_ci_barclamp git merge "$CI_BRANCH" || \
-            die "$CI_BRANCH does not merge cleanly in $CI_BARCLAMP.  Please fix this before continuing"
-        if [[ $CI_BRANCH != master ]]; then
-            in_ci_barclamp git merge master || \
-                die "$CI_BRANCH does not merge cleanly into master on $CI_BARCLAMP.  Please fix."
-        fi
-        NEED_TEST=true
-        test_params=("$CI_BARCLAMP")
-    fi
-
     # If we were not passed a list of barclamps to include,
     # pull in all of the ones declared as submodules.
-    [[ $BARCLAMPS ]] || \
-        BARCLAMPS=($(in_repo barclamps_in_branch "$CURRENT_BRANCH"))
-
-    if [[ $CI_BARCLAMP ]]; then
-        is_in "$CI_BARCLAMP" "${BARCLAMPS[@]}" || BARCLAMPS+=("$CI_BARCLAMP")
-    fi
+    BARCLAMPS=($(for bc in "$CROWBAR_DIR/barclamps/"*; do
+            [[ -f $bc/crowbar.yml ]] || continue
+            echo "${bc##*/}"
+            done))
     # Pull in barclamp information
     get_barclamp_info
 
@@ -426,6 +384,8 @@ do_crowbar_build() {
 
     # Make sure that all our barclamps are properly staged.
     for bc in "${BARCLAMPS[@]}"; do
+        [[ -f $bc/crowbar.yml ]] || continue
+        bc="${bc##*/}"
         is_barclamp "$bc" || die "Cannot find barclamp $bc!"
         debug "Staging $bc barclamp."
         for cache in pkg gem raw_pkg file; do
@@ -572,22 +532,9 @@ do_crowbar_build() {
         if [[ $NEED_TEST = true ]]; then
             echo "$(date '+%F %T %z'): Testing new iso"
             SMOKETEST_ISO="$ISO_DEST/$BUILT_ISO"
-            if test_iso "${test_params[@]}"; then
-                echo "$(date '+%F %T %z'): Test passed"
-                if [[ $CI_BARCLAMP ]]; then
-                    in_ci_barclamp git checkout master && \
-                        in_ci_barclamp git merge ci-throwaway-branch || \
-                        die "Could not merge $CI_BRANCH into master for $CI_BARCLAMP"
-                    in_repo git add "barclamps/$CI_BARCLAMP" && \
-                        in_repo git commit -m "Jenkins tested branch $CI_BRANCH of $CI_BARCLAMP on $(date '+%F %T %z'), and found it good." || \
-                        die "Could not update submodule reference for $CI_BARCLAMP"
-                fi
-            else
-                [[ $CI_BARCLAMP ]] && \
-                    echo "$(date '+%F %T %z'): Continuous integration test on $CI_BARCLAMP failed."
+            test_iso "${test_params[@]}" && \
+                echo "$(date '+%F %T %z'): Test passed" || \
                 die "Test failed."
-            fi
-
         fi
         echo "$(date '+%F %T %z'): Finished."
 }
