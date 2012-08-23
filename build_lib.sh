@@ -161,15 +161,17 @@ with_build_lock() {
 
 # Get a list of all the barclamps that a specific branch refers to.
 barclamps_in_branch() {
-    local b res=()
+    local b bc mode dtype sha
+    local -A res
     for b in "$@"; do
         in_repo branch_exists "$b" || \
             die "Branch $b does not exist in the Crowbar repo!"
+        while read mode dtype sha bc; do
+            [[ $mode = 160000 && $dtype = commit ]] || continue
+            res[${bc##*/}]=${bc##*/}
+        done < <(in_repo git ls-tree -r "$b" barclamps)
     done
-    local res=($(for b in "$@"; do in_repo git ls-tree -r \
-        "$b" barclamps; done | \
-        awk '/160000 commit/ {print $4}' |sort -u))
-    printf "%s\n" "${res[@]#barclamps/}"
+    printf "%s\n" "${res[@]}" |sort
 }
 
 
@@ -813,6 +815,31 @@ test_iso() {
     run_test "$@" || \
         die "$(date '+%F %T %z'): Smoketest of $ISO_DEST/$BUILT_ISO failed."
 }
+
+if [[ $http_proxy ]]; then
+    export USE_PROXY=1
+    raw_proxy="${http_proxy#*://}"
+    raw_proxy="${raw_proxy%/}"
+    proxy_re='^(.+):([0-9]+)$'
+    hostsplit_re='(.*)@(.*)'
+    userpass_re='(.*):(.*)'
+    if [[ $raw_proxy =~ $proxy_re ]]; then
+        export PROXY_PORT="${BASH_REMATCH[2]}"
+        raw_proxy="${BASH_REMATCH[1]}"
+    fi
+    if [[ $raw_proxy =~ $hostsplit_re ]]; then
+        raw_proxy="${BASH_REMATCH[2]}"
+        export PROXY_USER="${BASH_REMATCH[1]}"
+        if [[ ${BASH_REMATCH[1]} =~ $userpass_re ]]; then
+            export PROXY_PASSWORD="${BASH_REMATCH[2]}"
+            export PROXY_USER="${BASH_REMATCH[1]}"
+        fi
+    fi
+    export PROXY_HOST="$raw_proxy"
+    [[ $no_proxy ]] || no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST"
+else
+    unset USE_PROXY PROXY_HOST PROXY_PORT PROXY_USER PROXY_PASS
+fi
 
 export PATH="$PATH:$CROWBAR_DIR:$CROWBAR_DIR/extra:$CROWBAR_DIR/change-image/dell:$CROWBAR_DIR/test_framework"
 
