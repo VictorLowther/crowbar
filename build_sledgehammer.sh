@@ -48,24 +48,6 @@ fi
 [[ -f build-crowbar.conf ]] && \
     . "build-crowbar.conf"
 
-# Set up our proxies if we were asked to.
-if [[ $USE_PROXY = "1" && $PROXY_HOST ]]; then
-    proxy_str="http://"
-    if [[ $PROXY_PASSWORD && $PROXY_USER ]]; then
-        proxy_str+="$PROXY_USER:$PROXY_PASSWORD@"
-    elif [[ $PROXY_USER ]]; then
-        proxy_str+="$PROXY_USER@"
-    fi
-    proxy_str+="$PROXY_HOST"
-    [[ $PROXY_PORT ]] && proxy_str+=":$PROXY_PORT"
-    [[ $no_proxy ]] || no_proxy="localhost,localhost.localdomain,127.0.0.0/8,$PROXY_HOST"
-    [[ $http_proxy ]] || http_proxy="$proxy_str/"
-    [[ $https_proxy ]] || https_proxy="$http_proxy"
-    export no_proxy http_proxy https_proxy
-else
-    unset no_proxy http_proxy https_proxy
-fi
-
 # Always run in verbose mode for now.
 VERBOSE=true
 
@@ -129,14 +111,9 @@ SLEDGEHAMMER_LIVECD_CACHE="$CACHE_DIR/sledgehammer/$OS_TO_STAGE/livecd_cache"
     die "Do not know how to build Sledgehammer on this OS!"
 
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_lib.sh"
-
 . "$CROWBAR_DIR/$OS_TO_STAGE-extra/build_sledgehammer_lib.sh"
 
-debug "Mounting $ISO"
-sudo mount -t iso9660 -o loop "$ISO_LIBRARY/$ISO" "$IMAGE_DIR" || \
-    die "Could not mount $ISO"
-
-make_chroot
+setup_sledgehammer_chroot
 sudo cp "$CROWBAR_DIR/$OS_TO_STAGE-extra/sledgehammer.ks" "$CHROOT/mnt"
 sudo cp "$CROWBAR_DIR/sledgehammer-common/"* "$CHROOT/mnt"
 mkdir -p "$SLEDGEHAMMER_CHROOT_CACHE"
@@ -144,7 +121,6 @@ mkdir -p "$SLEDGEHAMMER_LIVECD_CACHE"
 in_chroot mkdir -p /mnt/cache
 sudo mount --bind "$SLEDGEHAMMER_CHROOT_CACHE" "$CHROOT/$CHROOT_PKGDIR"
 sudo mount --bind "$SLEDGEHAMMER_LIVECD_CACHE" "$CHROOT/mnt/cache"
-setup_sledgehammer_chroot
 in_chroot touch /mnt/make_sledgehammer
 in_chroot chmod 777 /mnt/make_sledgehammer
 echo '#!/bin/bash' >>"$CHROOT/mnt/make_sledgehammer"
@@ -162,6 +138,7 @@ rm -fr /mnt/tftpboot
 livecd-iso-to-pxeboot sledgehammer.iso
 /bin/rm /mnt/sledgehammer.iso
 EOF
+in_chroot ln -s /proc/self/mounts /etc/mtab
 in_chroot /mnt/make_sledgehammer
 cp -a "$CHROOT/mnt/tftpboot" "$CACHE_DIR/"
 in_chroot /bin/rm -rf /mnt/tftpboot
