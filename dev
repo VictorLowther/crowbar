@@ -192,13 +192,22 @@ switch_barclamps_to_build() {
     for bc in "$CROWBAR_DIR/barclamps/"*; do
 	bc=${bc##*/}
 	new_branch=$(barclamp_branch_for_build "$1" "$bc")
-        [[ $(in_barclamp "$bc" git symbolic-ref HEAD 2>/dev/null) = refs/heads/$new_branch || \
-            $(in_barclamp "$bc" git rev-parse HEAD) = $new_branch ]] && \
+        if [[ $new_branch =~ [0-9a-f]{40} ]] && \
+            { ! in_barclamp "$bc" git symbolic-ref HEAD; } && \
+            [[ $(in_barclamp "$bc" git rev-parse HEAD) = $new_branch ]]; then
+            # We want HEAD to be on a raw commit, and it is on the one we want.
             continue
-	if [[ $new_branch = empty-branch ]]; then
+        elif [[ $(in_barclamp "$bc" git symbolic-ref HEAD 2>/dev/null) = \
+            refs/heads/$new_branch ]]; then
+            # We want HEAD to be on a branch, and it is on the one we want.
+            continue
+	elif [[ $new_branch = empty-branch ]]; then
+            # We want to be on the empty branch, and we are not. Switch to the
+            # empty branch, creating it if we have to.
             debug "Switching $bc to the empty branch."
 	    in_barclamp "$bc" to_empty_branch
 	else
+            # We are not where we want to be.  Go there.
             debug "Switching $bc to $new_branch"
 	    in_barclamp "$bc" quiet_checkout "$new_branch" && continue
             {
