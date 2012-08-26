@@ -582,16 +582,15 @@ update_barclamp_gem_cache() {
 
 
     debug "adding gems to cache"
-    debug "$(sudo ls -la $CHROOT/$CHROOT_GEMDIR)"
+    debug "$(sudo find $CHROOT/$CHROOT_GEMDIR -name '*.gem')"
     while read gem; do
     	debug "gem ${gem} is from $CHROOT/$CHROOT_GEMDIR" 
         [[ $gem = *.gem ]] || continue
-	debug "gem ${gem} sure does end in .gem"
         [[ ${gems["$gem"]} = "true" ]] && continue
 	debug "gem hash ${gem} = ${gems[${gem}]} "
 	debug "update_barclamp_gem_cache: adding ${gem} to $bc_cache"
         cache_add "$gem" "$bc_cache"
-    done < <(sudo find "$CHROOT/$CHROOT_GEMDIR" -type f)
+    done < <(sudo find "$CHROOT/$CHROOT_GEMDIR" -type f -name '*.gem')
     debug "done adding gems to cache"
 }
 
