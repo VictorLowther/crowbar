@@ -367,9 +367,14 @@ do_crowbar_build() {
     index_cd_pool
 
     # Copy over the Crowbar bits and their prerequisites
-    for d in "extra" "$OS-common" "$OS_TOKEN-extra"; do
-	[[ -d $CROWBAR_DIR/$d ]] || continue
-	cp -r "$CROWBAR_DIR/$d"/* "$BUILD_DIR/extra"
+    # The ordering here is designed to always have the most specific
+    # version of the file for a build wind up staged on the DVD, without
+    # having to walk the whole directory tree.
+    for rd in "$CROWBAR_DIR" "$(release_cfg_dir)" "$(build_cfg_dir)"; do
+        for d in "extra" "$OS-common" "$OS_TOKEN-extra"; do
+	    [[ -d $rd/$d ]] || continue
+	    cp -r "$rd/$d"/* "$BUILD_DIR/extra"
+        done
     done
     cp -r "$CROWBAR_DIR/change-image"/* "$BUILD_DIR"
 
