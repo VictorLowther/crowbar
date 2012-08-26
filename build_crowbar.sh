@@ -371,10 +371,11 @@ do_crowbar_build() {
     # version of the file for a build wind up staged on the DVD, without
     # having to walk the whole directory tree.
     for rd in "$CROWBAR_DIR" "$(release_cfg_dir)" "$(build_cfg_dir)"; do
-        for d in "extra" "change-image" "$OS-common" "$OS_TOKEN-extra"; do
+        for d in "extra" "$OS-common" "$OS_TOKEN-extra"; do
 	    [[ -d $rd/$d ]] || continue
 	    cp -r "$rd/$d"/* "$BUILD_DIR/extra"
         done
+        [[ -d "$rd/change-image" ]] && cp -r "$rd/change-image/"* "$BUILD_DIR"
     done
 
     # Add critical build meta information to build-info
