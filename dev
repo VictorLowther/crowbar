@@ -217,6 +217,7 @@ switch_barclamps_to_build() {
             } >&2
 	fi
     done
+    in_repo git config 'crowbar.build' "$1"
 }
 
 # Check out the appropriate release branch for all the barclamps in a given
