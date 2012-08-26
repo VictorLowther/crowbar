@@ -980,8 +980,6 @@ __pin_release() {
         build=${1%/*} bc=${1##*/}
         ref="${2:-$(in_barclamp "$bc" git rev-parse HEAD)}"
         barclamp_branch_for_build "$build" "$bc" "$ref" || return 1
-        debug "Checking out $ref in $bc"
-        in_barclamp "$bc" quiet_checkout "$ref"
     elif build_exists "$1"; then
         for bc in $(barclamps_in_build "$1"); do
             __pin_release "$1/$bc" "$2" || return 1
@@ -1000,6 +998,7 @@ pin_release() {
     crowbar_is_clean || die "Crowbar must be clean before pinning $1"
     if __pin_release "$@"; then
         git commit -m "Pinned barclamps in $1 to ${2:-current HEAD}"
+        switch_release
         return 0
     else
         in_repo git rm -r --cached releases/
