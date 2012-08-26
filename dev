@@ -1851,6 +1851,21 @@ flatten_crowbar() {
     in_repo git add releases
     in_repo git config 'crowbar.build' 'development/master'
     in_repo git commit -m "Added flattened Crowbar metadata."
+    # De-submoduleize barclamps.
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+        [[ -f "$bc"/.git ]] || continue
+        debug "De-submoduleizing barclamp ${bc##*/}"
+        read gpath < "$bc/.git"
+        if [[ $gpath = 'gitdir: '* ]]; then
+            rm -f "$bc/.git"
+            in_barclamp "${bc##*/}" mv "${gpath#gitdir: }" "$bc/.git"
+            in_barclamp "${bc##*/}" git config --unset core.worktree
+            in_barclamp "${bc##*/}" git reset --hard HEAD
+            in_barclamp "${bc##*/}" git clean -f -x -d
+        else
+            echo "Malformed .git file in $bc. Skipping." >&2
+        fi
+    done
 }
 
 setup_unit_tests() {
