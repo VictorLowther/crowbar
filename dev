@@ -193,7 +193,7 @@ switch_barclamps_to_build() {
 	bc=${bc##*/}
 	new_branch=$(barclamp_branch_for_build "$1" "$bc")
         if [[ $new_branch =~ [0-9a-f]{40} ]] && \
-            { ! in_barclamp "$bc" git symbolic-ref HEAD; } && \
+            { ! in_barclamp "$bc" git symbolic-ref HEAD &>/dev/null; } && \
             [[ $(in_barclamp "$bc" git rev-parse HEAD) = $new_branch ]]; then
             # We want HEAD to be on a raw commit, and it is on the one we want.
             continue
