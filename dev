@@ -51,10 +51,6 @@ which gem &>/dev/null || \
 gem list -i json &>/dev/null || \
     die "JSON gem not installed.  Please install it with gem install json."
 
-
-get_repo_cfg() { in_repo git config --get "$1"; }
-git_config_has() { git config --get "$1" &>/dev/null; }
-
 remote_available() {
     local r urlbase url_re='^(https?|ssh|git)://([^/]+)'
     local -A remote_hash
@@ -123,64 +119,6 @@ remote_for_build() {
     done
     return 1
 }
-
-current_build() { get_repo_cfg 'crowbar.build'; }
-
-# Get the current release we are working on, which is a function of
-# the currently checked-out branch.
-current_release() {
-    local rel
-    rel=$(current_build) || \
-	die "current_release: Cannot get current build information!"
-    echo "${rel%/*}"
-}
-
-barclamp_exists_in_build() { 
-    local build=${1%/*} bc=${1##*/}
-    [[ -f $CROWBAR_DIR/releases/$build/barclamp-$bc ]]
-}
-build_exists() [[ -f $CROWBAR_DIR/releases/$1/barclamp-crowbar ]]
-release_exists() [[ -d $CROWBAR_DIR/releases/$1/master ]]
-
-# Find all barclamps for whatever.
-barclamp_finder() {
-    # $1 = directory under $CROWBAR_DIR/releases to look in.
-    # $2 = regex to use as a filter.
-    # $2 = Match in the RE to return.  Defaults to 1
-    local b
-    while read b; do
-	[[ $b =~ $2 ]] || continue
-	printf '%s\n' "${BASH_REMATCH[${3:-1}]}"
-    done < <(find "$CROWBAR_DIR/releases/$1" -name 'barclamp-*') |sort -u
-}
-
-barclamps_in_build() {
-    flat_checkout || die "Cannot get list of barclamps, must flatten build first!"
-    local build bc
-    build="${1:-$(get_repo_cfg 'crowbar.build')}"
-    barclamp_finder "$build" '/barclamp-(.+)$'
-}
-
-barclamps_in_release() {
-    # $1 = release
-    release_exists "$1" || return 1
-    barclamp_finder "$1" '/barclamp-(.+)$'
-}
-
-builds_in_release() {
-    release_exists "$1" || return 1
-    barclamp_finder "$1" "releases/.+/([^/]+)/barclamp-crowbar"
-}
-
-all_barclamps() {
-    local bc
-    local -A barclamps
-    barclamp_finder '' '/barclamp-(.+)$'
-}
-
-branches_for_release() { barclamp_finder "${1:-$(current_release)}" 'releases/.+/([^/]+)/barclamp-crowbar$'; }
-
-all_releases() { barclamp_finder '' 'releases/(.+)/master/barclamp-crowbar$'; }
 
 switch_barclamps_to_build() {
     # $1 = new build
