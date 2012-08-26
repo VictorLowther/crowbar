@@ -2025,7 +2025,7 @@ parse_opts_and_go() {
         barclamps-in-build) shift; barclamps_in_build "$@";;
         cut_release) shift; cut_release "$@";;
         new-feature) shift; cut_feature "$1";;
-        branches) shift; builds_in_release ;;
+        switch) shift; switch_release "$@";;
         flatten) shift; flatten_crowbar "$@";;
         checkout) shift; checkout "$@";;
         build) shift; build_crowbar "$@";;
