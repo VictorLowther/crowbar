@@ -103,7 +103,7 @@ __barclamp_pkg_metadata_needs_update() (
 )
 
 __make_barclamp_pkg_metadata () {
-    in_chroot /bin/bash -c "cd /mnt; createrepo -d -q ."
+    in_chroot "cd /mnt; createrepo -d -q ."
     sudo chown -R "$(whoami)" "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs"
     touch "$CACHE_DIR/barclamps/$bc/$OS_TOKEN/pkgs/repodata"
     if [[ $CURRENT_CACHE_BRANCH ]]; then
@@ -176,7 +176,7 @@ __make_chroot() {
     done
     # Make sure yum does not throw away our caches for any reason.
     in_chroot /bin/sed -i -e '/keepcache/ s/0/1/' /etc/yum.conf
-    in_chroot /bin/bash -c "echo 'exclude = *.i?86' >>/etc/yum.conf"
+    in_chroot "echo 'exclude = *.i?86' >>/etc/yum.conf"
 
     [[ $USE_PROXY = "1" ]] && (
         cd "$CHROOT"
@@ -208,12 +208,12 @@ __make_chroot() {
         in_chroot sed -ie '/^enabled/ s/1/0/' \
         /etc/yum/pluginconf.d/fastestmirror.conf
     if [[ $ALLOW_CACHE_UPDATE = true ]]; then
-        in_chroot /bin/bash -c 'cp /etc/yum.repos.d.old/* /etc/yum.repos.d'
+        in_chroot 'cp /etc/yum.repos.d.old/* /etc/yum.repos.d'
     fi
     if [[ -f $CHROOT/etc/yum.conf ]]; then
-        in_chroot /bin/bash -c 'echo "exclude=centos-release redhat-release" >>/etc/yum.conf'
+        in_chroot 'echo "exclude=centos-release redhat-release" >>/etc/yum.conf'
     else
-        in_chroot /bin/bash -c 'printf "[main]\nexclude=centos-release redhat-release" >/etc/yum.conf'
+        in_chroot 'printf "[main]\nexclude=centos-release redhat-release" >/etc/yum.conf'
     fi
 }
 

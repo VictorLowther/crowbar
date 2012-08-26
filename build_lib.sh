@@ -444,7 +444,6 @@ cache_add() {
     if [[ $CURRENT_CACHE_BRANCH ]]; then
         CACHE_NEEDS_COMMIT=true
         in_cache git add "${2#${CACHE_DIR}/}"
-    	debug "in_cache git add result: $?"
     fi
 }
 
