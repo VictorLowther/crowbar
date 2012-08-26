@@ -224,7 +224,7 @@ switch_release() {
             echo "Release $1 does not have build $new_build, switching to $1/master instead."
             new_build="$1/master"
         fi
-    else
+    elif [[ $1 ]]; then
 	die "$1 is not a release or a build I can switch to!"
     fi
     crowbar_is_clean || \
@@ -970,6 +970,8 @@ __pin_release() {
         build=${1%/*} bc=${1##*/}
         ref="${2:-$(in_barclamp "$bc" git rev-parse HEAD)}"
         barclamp_branch_for_build "$build" "$bc" "$ref" || return 1
+        debug "Checking out $ref in $bc"
+        in_barclamp "$bc" quiet_checkout "$ref"
     elif build_exists "$1"; then
         for bc in $(barclamps_in_build "$1"); do
             __pin_release "$1/$bc" "$2" || return 1
