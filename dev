@@ -990,7 +990,7 @@ pin_release() {
         git commit -m "Pinned barclamps in $1 to ${2:-current HEAD}"
         return 0
     else
-        in_repo git rm --cached releases/
+        in_repo git rm -r --cached releases/
         in_repo git checkout HEAD -- releases
         echo "Could not pin $1 to ${2:-current HEAD}, leaving things unchanged."
         return 1
@@ -1606,7 +1606,7 @@ barclamp_branch_for_build() {
         return 0
     fi
     [[ -f $bcfile ]] && \
-        in_barclamp git rev-parse --verify --quiet "$3" &>/dev/null || return 1
+        in_barclamp "$2" git rev-parse --verify --quiet "$3" &>/dev/null || return 1
     echo "$3" > "$bcfile"
     git add "$bcfile"
 }
