@@ -235,7 +235,7 @@ is_in() {
 }
 
 # Run a command in our chroot environment.
-in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" "$@"; }
+in_chroot() { sudo -H /usr/sbin/chroot "$CHROOT" /bin/bash -l -c "$*"; }
 
 # A little helper function for doing bind mounts.
 bind_mount() {
@@ -358,6 +358,19 @@ make_chroot() {
     sudo mkdir -p "$CHROOT/$CHROOT_PKGDIR"
     sudo mkdir -p "$CHROOT/$CHROOT_GEMDIR"
     __make_chroot
+    if [[ $http_proxy || $https_proxy || $no_proxy ]]; then
+        local __f
+        __f=$(mktemp /tmp/proxy-XXXXX.sh) || \
+            die "Canot make utility chroot -- error adding proxies."
+        [[ $http_proxy ]] && echo "http_proxy=\"$http_proxy\"" >> "$__f"
+        [[ $https_proxy ]] && echo "https_proxy=\"$https_proxy\"" >> "$__f"
+        [[ $no_proxy ]] && echo "no_proxy=\"$no_proxy\"" >> "$__f"
+        sudo cp "$__f" "$CHROOT/etc/environment"
+        [[ $http_proxy ]] && echo "export http_proxy" >> "$__f"
+        [[ $https_proxy ]] && echo "export https_proxy" >> "$__f"
+        [[ $no_proxy ]] && echo "export no_proxy" >> "$__f"
+        sudo cp "$__f" "$CHROOT/etc/profile.d/proxy.sh"
+    fi
     in_chroot ln -s /proc/self/mounts /etc/mtab
 
     if [[ $ALLOW_CACHE_UPDATE = true ]]; then
