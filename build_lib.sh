@@ -807,8 +807,9 @@ barclamp_exists_in_build() {
 }
 
 build_cfg_dir() {
-    build_exists "$1" || return 1
-    echo "$CROWBAR_DIR/releases/$1"
+    local d="${1:-$(current_build)}"
+    build_exists "$d" || return 1
+    echo "$CROWBAR_DIR/releases/$d"
 }
 
 release_exists() [[ -d $CROWBAR_DIR/releases/$1/master ]]
