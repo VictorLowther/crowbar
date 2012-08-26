@@ -169,7 +169,7 @@ barclamps_in_release() {
 
 builds_in_release() {
     release_exists "$1" || return 1
-    barclamp_finder "$1" "releases/[^/]+/([^/]+)/barclamp-crowbar"
+    barclamp_finder "$1" "releases/.+/([^/]+)/barclamp-crowbar"
 }
 
 all_barclamps() {
@@ -1157,7 +1157,9 @@ pull-requests-prep: Prepare to issue pull requests.
 pull-requests-gen:  Issue pull requests.
 release:            Show the current release or feature you are on.
 releases:           Show all releases and features in your local repos.
-branches:           Show the branches in the current release.
+builds:             Show the builds in the current release.
+current-build:      Shows the current build you are working on.
+barclamps-in-build: Shows the barclamps that are members of a build.
 switch:             Switch to a different release.
 checkout:           Check out a branch in the current release.
 build:              build Crowbar.
@@ -1266,8 +1268,14 @@ Command line options:
 
   releases -- Lists the releases to choose from.
 
-  branches -- Shows the branches that are part of the specified release,
+  builds -- Shows the builds that are part of the specified release,
 	      or the current release if no release is specified.
+
+  current-build -- Shows the build that the barcmamps are set to.
+
+  barclamps-in-build -- Shows all the barclamps that are members of the
+                        build passed as the first argument, or of the current
+                        build if no argument is passed.
 
   switch -- Change current release to the specified release, or the current
 	    release if no release name was passed.  This has the side effect
@@ -2012,10 +2020,12 @@ parse_opts_and_go() {
         help) dev_help;;
         release) current_release;;
         releases) show_releases;;
+        builds|branches) shift; builds_in_release "${1:-$(current_release)}";;
+        current-build) shift; current_build;;
+        barclamps-in-build) shift; barclamps_in_build "$@";;
         cut_release) shift; cut_release "$@";;
         new-feature) shift; cut_feature "$1";;
-        switch) shift; switch_release "$@";;
-        branches) shift; branches_for_release "$@";;
+        branches) shift; builds_in_release ;;
         flatten) shift; flatten_crowbar "$@";;
         checkout) shift; checkout "$@";;
         build) shift; build_crowbar "$@";;
