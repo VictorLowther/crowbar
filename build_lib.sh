@@ -826,7 +826,7 @@ current_release() {
 release_cfg_dir() {
     local d="${1:-$(current_release)}"
     release_exists "$d" || return 1
-    echo "$CROWBAR_DIR/releases/$d
+    echo "$CROWBAR_DIR/releases/$d"
 }
 
 # Find all barclamps for whatever.
