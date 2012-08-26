@@ -1683,6 +1683,7 @@ build_crowbar() {
     target_release=$(current_release)
     target_branch=$(current_build)
     target_branch=${target_branch##*/}
+    [[ $1 ]] || { current_build; return 0; }
     crowbar_is_clean || exit 1
     while [[ $1 ]]; do
 	case $1 in
