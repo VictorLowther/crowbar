@@ -381,8 +381,6 @@ do_crowbar_build() {
 
     # Make sure that all our barclamps are properly staged.
     for bc in "${BARCLAMPS[@]}"; do
-	[[ -f $bc/crowbar.yml ]] || continue
-	bc="${bc##*/}"
 	is_barclamp "$bc" || die "Cannot find barclamp $bc!"
 	debug "Staging $bc barclamp."
 	for cache in pkg gem raw_pkg file; do
