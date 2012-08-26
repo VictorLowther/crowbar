@@ -823,6 +823,12 @@ current_release() {
     echo "${rel%/*}"
 }
 
+release_cfg_dir() {
+    local d="${1:-$(current_release)}"
+    release_exists "$d" || return 1
+    echo "$CROWBAR_DIR/releases/$1"
+}
+
 # Find all barclamps for whatever.
 barclamp_finder() {
     # $1 = directory under $CROWBAR_DIR/releases to look in.
