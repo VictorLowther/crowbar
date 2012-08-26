@@ -135,6 +135,10 @@ current_release() {
     echo "${rel%/*}"
 }
 
+barclamp_exists_in_build() { 
+    local build=${1%/*} bc=${1##*/}
+    [[ -f $CROWBAR_DIR/releases/$build/barclamp-$bc ]]
+}
 build_exists() [[ -f $CROWBAR_DIR/releases/$1/barclamp-crowbar ]]
 release_exists() [[ -d $CROWBAR_DIR/releases/$1/master ]]
 
@@ -161,6 +165,11 @@ barclamps_in_release() {
     # $1 = release
     release_exists "$1" || return 1
     barclamp_finder "$1" '/barclamp-(.+)$'
+}
+
+builds_in_release() {
+    release_exists "$1" || return 1
+    barclamp_finder "$1" "releases/[^/]+/([^/]+)/barclamp-crowbar"
 }
 
 all_barclamps() {
@@ -952,6 +961,57 @@ backup_everything() {
     in_repo backup_repo
 }
 
+# Misnamed, this can pin a release, specific build,
+# or a barclamp in a specific build.
+__pin_release() {
+    [[ $1 ]] || die "Must pass a release, release/build, or release/build/barclamp to pin."
+    local bc build ref
+    if barclamp_exists_in_build "$1"; then
+        build=${1%/*} bc=${1##*/}
+        ref="${2:-$(in_barclamp "$bc" git rev-parse HEAD)}"
+        barclamp_branch_for_build "$build" "$bc" "$ref" || return 1
+    elif build_exists "$1"; then
+        for bc in $(barclamps_in_build "$1"); do
+            __pin_release "$1/$bc" "$2" || return 1
+        done
+    elif release_exists "$1"; then
+        for build in $(builds_in_release "$1"); do
+            __pin_release "$build" "$2" || return 1
+        done
+    else
+        echo "Don't know what $1 is!" >&2
+        return 1
+    fi
+}
+
+pin_release() {
+    crowbar_is_clean || die "Crowbar must be clean before pinning $1"
+    if __pin_release "$@"; then
+        git commit -m "Pinned barclamps in $1 to ${2:-current HEAD}"
+        return 0
+    else
+        in_repo git rm --cached releases/
+        in_repo git checkout HEAD -- releases
+        echo "Could not pin $1 to ${2:-current HEAD}, leaving things unchanged."
+        return 1
+    fi
+}
+
+unpin_release() {
+    [[ $1 ]] || die "Must pass a release, release/build, or release/build/barclamp to unpin."
+    local bc build
+    if barclamp_exists_in_build "$1"; then
+        build=${1%/*}
+    elif build_exists "$1"; then
+        build="$1"
+    elif release_exists "$1"; then
+        build="$1/master"
+    else
+        die "Don't know what $1 is!"
+    fi
+    pin_release "$1" "$(build_branch "$build")"
+}
+
 merge_or_rebase_from_remote() {
     # $1 = remote
     # $2 = local branch
@@ -1095,6 +1155,8 @@ new-feature:        Create a new feature bundle from the current release.
 erase-feature:      Forget about branches for a feature you are not working on.
 find-parent:        Find the closest parent of a release or feature.
 reset-release:      Resets a release to upstream or your last backup.
+pin:                Pin a release, build, or barclamp in a build to a specific rev
+unpin:              Unpin a release, build, or barclamp in a build.
 scrub-merged-pulls: Scrub merged pull request branches.
 setup-unit-tests:   Sets up unit test environment
 reload-unit-tests:  Reload the data for the unit test environment
@@ -1252,6 +1314,26 @@ Command line options:
 				  if --release is not specified.
 		   --skip-barclamps: Skip resetting the the barclamps for the
 				     release.
+
+  pin -- Pin a release, build, or barclamp in a build to a specific git commit-ish.
+         Normally, barclamps in a build are allowed to track the appropriate
+         branches for a release.  Pin allows you to either force them to track a
+         nonstandard branch, or lock them at a specific commit or tag.
+
+         The first argument to pin is one of a release, a build in a release, or a
+         barclamp in a release in the following formats:
+         <release>
+         <release>/<build>
+         <release>/<build>/<barclamp>
+
+         The second argument to pin is the branch or tag to pin the barclamps to.
+         If nothing is passed, pin will pin the barclamps at their current HEAD.
+
+  unpin -- Undoes the effect of a pin bu having barclamps track the default branch
+           for the passed release.
+
+           The first argument to unpin is the same as for pin.
+           There is no second argument.
 
   scrub-merged-pulls -- Delete any tracking branches created as placeholders
                         for pull requests.  Without any options, this just
@@ -1517,8 +1599,16 @@ release_branch() { build_branch "${1:-$(current_release)}/master"; }
 barclamp_branch_for_build() {
     # $1 = build
     # $2 = barclamp
+    # $3 = (optional) ref to pin the barclamp at.
     local bcfile="$CROWBAR_DIR/releases/$1/barclamp-$2"
-    [[ -f $bcfile ]] && cat "$bcfile" || echo "empty-branch"
+    if [[ ! $3 ]]; then
+        [[ -f $bcfile ]] && cat "$bcfile" || echo "empty-branch"
+        return 0
+    fi
+    [[ -f $bcfile ]] && \
+        in_barclamp git rev-parse --verify --quiet "$3" &>/dev/null || return 1
+    echo "$3" > "$bcfile"
+    git add "$bcfile"
 }
 
 # Given a release, find the "best" parent release.  This will only
@@ -1923,6 +2013,8 @@ parse_opts_and_go() {
         find-parent) shift; find_best_parent "$@";;
         reset-release) shift; reset_release "$@";;
         scrub-merged-pulls) shift; scrub_merged_pulls "$@";;
+        pin) shift; pin_release "$@";;
+        unpin) shift; unpin_release "$@";;
         setup-unit-tests) setup_unit_tests;;
         reload-unit-tests) reload_unit_tests;;
         run-unit-tests) run_unit_tests;;
