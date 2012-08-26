@@ -1844,13 +1844,6 @@ flatten_crowbar() {
 	    (cd "$build_dir"; git cat-file blob "$gsha" >"$gpath")
 	done < <(in_repo git ls-tree "$ref")
     done < <(git show-ref)
-    [[ -d $CROWBAR_DIR/.releases ]] || return 0
-    mkdir -p "$CROWBAR_DIR/releases/"
-    cp -a "$CROWBAR_DIR/.releases/." "$CROWBAR_DIR/releases/."
-    rm -rf "$CROWBAR_DIR/.releases"
-    in_repo git add releases
-    in_repo git config 'crowbar.build' 'development/master'
-    in_repo git commit -m "Added flattened Crowbar metadata."
     # De-submoduleize barclamps.
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         [[ -f "$bc"/.git ]] || continue
@@ -1866,6 +1859,13 @@ flatten_crowbar() {
             echo "Malformed .git file in $bc. Skipping." >&2
         fi
     done
+    [[ -d $CROWBAR_DIR/.releases ]] || return 0
+    mkdir -p "$CROWBAR_DIR/releases/"
+    cp -a "$CROWBAR_DIR/.releases/." "$CROWBAR_DIR/releases/."
+    rm -rf "$CROWBAR_DIR/.releases"
+    in_repo git add releases
+    in_repo git config 'crowbar.build' 'development/master'
+    in_repo git commit -m "Added flattened Crowbar metadata."
 }
 
 setup_unit_tests() {
