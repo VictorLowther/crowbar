@@ -838,7 +838,7 @@ barclamp_finder() {
 barclamps_in_build() {
     flat_checkout || die "Cannot get list of barclamps, must flatten build first!"
     local build bc
-    build="${1:-$(get_repo_cfg 'crowbar.build')}"
+    build="${1:-$(current_build)}"
     barclamp_finder "$build" '/barclamp-(.+)$'
 }
 

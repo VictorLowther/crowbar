@@ -323,10 +323,7 @@ do_crowbar_build() {
 
     # If we were not passed a list of barclamps to include,
     # pull in all of the ones declared as submodules.
-    BARCLAMPS=($(for bc in "$CROWBAR_DIR/barclamps/"*; do
-	    [[ -f $bc/crowbar.yml ]] || continue
-	    echo "${bc##*/}"
-	    done))
+    [[ $BARCLAMPS ]] || BARCLAMPS=($(barclamps_in_build))
     # Pull in barclamp information
     get_barclamp_info
 
