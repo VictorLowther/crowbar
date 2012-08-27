@@ -1105,6 +1105,7 @@ sync_everything() {
     done
     # Finished with barclamps, now for crowbar.
     debug "Syncing crowbar"
+    in_repo merge_or_rebase_from_remote "$(remote_for_branch master)" master
     sync_repo "$CROWBAR_DIR" "$@" || \
 	die "Could not sync Crowbar with origin branches"
     if [[ $unsynced_barclamps ]]; then
