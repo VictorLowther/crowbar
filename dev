@@ -212,12 +212,18 @@ set -o pipefail
 # Given a branch, print the first remote that branch is "owned" by.
 # This assumes update_tracking_branches is keeling things up to date.
 remote_for_branch() {
-    if [[ ! $DEV_FROM_REMOTES ]]; then
-	git config --get "branch.$1.remote"
-	return $?
-    fi
+    local -a remotes
     local remote
-    for remote in "${DEV_FROM_REMOTES[@]}"; do
+    if [[ ! $DEV_FROM_REMOTES ]]; then
+        if git_config_has "branch.$1.remote"; then
+            git config --get "branch.$1.remote"
+	    return $?
+        else
+            remotes=($(sorted_remotes))
+        fi
+    fi
+    [[ $DEV_FROM_REMOTES ]] && remotes=("${DEV_FROM_REMOTES[@]}")
+    for remote in "${remotes[@]}"; do
 	git show-ref --quiet --verify "refs/remotes/$remote/$1" || continue
 	echo "$remote"
 	return 0
@@ -349,66 +355,79 @@ quiet_checkout() {
     return 1
 }
 
-clear_tracking_info() {
-    local line k v branch_re='^(branch\..*\).(merge|remote)$'
-    while read line; do
-	k=${line%%=*}
-	v=${line#*=}
-	[[ $k =~ $branch_re ]] || continue
-	git config --remove-section "${BASH_REMATCH[1]}"
-    done < <(git config --list)
-}
-
 # Update tracking branches for all remotes in a specific repo.
 # Expects to be called within a specific repository
+# It is structured to minimize forking, please be careful modifying it.
 update_tracking_branches() {
     # Create tracking branches for any branches from this remote
     # that do not already exist.
-    local remote p br
-    local -A branches
-    clear_tracking_info
+    local remote p br in_tracking_update=true
+    local -A branches remotes
+    p=0
+    for remote in $(sorted_remotes); do
+        remotes[$remote]="$p"
+        p=$((p + 1))
+    done
     while read p br; do
+        # We never care about HEAD branches at all.
+        [[ ${br##*/} = HEAD ]] && continue
         if [[ $br = refs/heads/* ]]; then
             br="${br#refs/heads/}"
-            remote="$(remote_for_branch "$br")"
-            if [[ ! $remote ]]; then
+            if [[ $br = personal/* || $br = pull-req* ]]; then
+                # This should not be here.  Kill it.
+                git branch -D "$br"
+                # Nuke any config that might have come from a remote we don't care about.
+                git_config_has "branch.$br.remote" || continue
                 git config --remove-section "branch.$br"
-            else
-                branches[$br#refs/heads/]="$remote"
-                if git_config_has "branch.$br.remote"; then
-                    if [[ $(git config --get "branch.$br.remote") != $remote ]]; then
-                        git config --replace-all "$branch.$br.remote" "$remote"
-                    fi
-                else
-                    git config "branch.$br.remote" "$remote"
-                fi
-                if git_config_has "branch.$br.merge"; then
-                    if [[ $(git config --get "branch.$br.merge") != $br ]]; then
-                        git config --replace-all "$branch.$br.merge" "$br"
-                    fi
-                else
-                    git config "branch.$br.merge" "$br"
-                fi
+                continue
             fi
+            # Record that we have seen this branch, but don't know what its remote should be.
+            branches["$br"]="no remote"
+            continue
         elif [[ $br = refs/remotes/* ]]; then
             br="${br#refs/remotes/}"
+            # Grab our remote, and go on to the next ref if we don't care about it.
             remote="${br%%/*}"
-            crowbar_remote_exists "$remote" || continue
+            [[ ${remotes[$remote]} ]] || continue
             br="${br#${remote}/}"
-            [[ ${branches[$br]} ]] && continue
+            # Skip personal or pull-request branches.
+            [[ $br = personal/* || $br = pull-req* ]] && continue
+            # If we have never seen this branch before, or
+            # we don't have a remote for it, or
+            # the remote we have for it is lower priority than our remote, then
+            # give this branch us as a remote instead.
+            if [[ ! ${branches[$br]} || \
+                ${branches[$br]} = "no remote" ]] || \
+                (( ${remotes[${branches[$br]}]} > ${remotes[$remote]} )); then
+                branches[$br]="$remote"
+            fi
+        fi
+    done < <(LC_ALL=C git show-ref |sort -k2) # Ensure that heads come first!
+    # Now, we have our list of branches.  Operate on it.
+    for br in "${!branches[@]}"; do
+        remote="${branches[$br]}"
+        if ! branch_exists "$br"; then
+            # We need to create a local ref for this branch.
             git branch "$br" "$remote/$br"
             git config "branch.$br.remote" "$remote"
             git config "branch.$br.merge" "refs/heads/$br"
+        elif [[ $remote = "no remote" ]]; then
+            continue
+        else
+            git config --remove-section "branch.$br"
+            git config "branch.$br.remote" "$remote"
+            git config "branch.$br.merge" "refs/heads/$br"
         fi
-    done < <(git show-ref |sort -k2)
+    done
 }
 
 update_all_tracking_branches() {
     local bc
-    debug "Updating tracking branch references"
+    debug "Updating tracking branch references in Crowbar"
     in_repo update_tracking_branches
     for bc in "$CROWBAR_DIR/barclamps/"*; do
 	[[ -d $bc/.git || -f $bc/.git ]] || continue
+        debug "Updating tracking branch references in barclamp ${bc##*/}"
 	(cd "$bc"; update_tracking_branches)
     done
 }
@@ -1085,7 +1104,6 @@ sync_everything() {
 	fi
     done
     # Finished with barclamps, now for crowbar.
-    allow_remote_rebase=false
     debug "Syncing crowbar"
     sync_repo "$CROWBAR_DIR" "$@" || \
 	die "Could not sync Crowbar with origin branches"
@@ -1985,6 +2003,7 @@ parse_opts_and_go() {
         is_clean) shift; crowbar_is_clean "$@";;
         fetch) shift; fetch_all "$@";;
         sync) shift; sync_everything "$@";;
+        refresh-tracking) shift; update_all_tracking_branches "$@";;
         setup) setup;;
         backup) shift; backup_everything "$@";;
         push) shift; push_branches "$@";;
