@@ -582,7 +582,7 @@ update_barclamp_gem_cache() {
             gemver=''
         fi
         gemopts=(install --no-ri --no-rdoc)
-        [[ $gemver ]] && gemopts+=(--version "= ${gemver}")
+        [[ $gemver ]] && gemopts+=(--version "'= ${gemver}'")
         [[ $http_proxy ]] && gemopts+=(-p "$http_proxy")
         in_chroot /usr/bin/gem "${gemopts[@]}" "$gemname"
     done
