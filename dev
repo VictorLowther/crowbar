@@ -350,12 +350,12 @@ quiet_checkout() {
 }
 
 clear_tracking_info() {
-    local line k v branch_re='^branch\..*\.(merge|remote)$'
+    local line k v branch_re='^(branch\..*\).(merge|remote)$'
     while read line; do
 	k=${line%%=*}
 	v=${line#*=}
 	[[ $k =~ $branch_re ]] || continue
-	git config --unset "$k"
+	git config --remove-section "${BASH_REMATCH[1]}"
     done < <(git config --list)
 }
 
@@ -364,23 +364,43 @@ clear_tracking_info() {
 update_tracking_branches() {
     # Create tracking branches for any branches from this remote
     # that do not already exist.
-    local remote
+    local remote p br
+    local -A branches
     clear_tracking_info
-    while read remote; do
-	git_remote_exists "$remote" || continue
-	while read p br; do
-	    [[ $br = refs/remotes/$remote* ]] || continue
-	    br=${br#refs/remotes/$remote/}
-	    [[ $br = HEAD ]] && continue
-	    [[ $br = personal/* ]] && continue
-	    [[ $br = pull-req* ]] && continue
-	    branch_exists "$br" || git branch "$br" "$remote/$br" >&/dev/null
-	    git_config_has "branch.$br.remote" || \
-		git config "branch.$br.remote" "$remote"
-	    git_config_has "branch.$br.merge" || \
-		git config "branch.$br.merge" "refs/heads/$br"
-	done < <(git show-ref)
-    done < <(sorted_remotes)
+    while read p br; do
+        if [[ $br = refs/heads/* ]]; then
+            br="${br#refs/heads/}"
+            remote="$(remote_for_branch "$br")"
+            if [[ ! $remote ]]; then
+                git config --remove-section "branch.$br"
+            else
+                branches[$br#refs/heads/]="$remote"
+                if git_config_has "branch.$br.remote"; then
+                    if [[ $(git config --get "branch.$br.remote") != $remote ]]; then
+                        git config --replace-all "$branch.$br.remote" "$remote"
+                    fi
+                else
+                    git config "branch.$br.remote" "$remote"
+                fi
+                if git_config_has "branch.$br.merge"; then
+                    if [[ $(git config --get "branch.$br.merge") != $br ]]; then
+                        git config --replace-all "$branch.$br.merge" "$br"
+                    fi
+                else
+                    git config "branch.$br.merge" "$br"
+                fi
+            fi
+        elif [[ $br = refs/remotes/* ]]; then
+            br="${br#refs/remotes/}"
+            remote="${br%%/*}"
+            crowbar_remote_exists "$remote" || continue
+            br="${br#${remote}/"
+            [[ ${branches[$br]} ]] && continue
+            git branch "$br" "$remote/$br"
+            git config "branch.$br.remote" "$remote"
+            git config "branch.$br.merge" "refs/heads/$br"
+        fi
+    done < <(git show-ref |sort -k2)
 }
 
 update_all_tracking_branches() {
