@@ -394,7 +394,7 @@ update_tracking_branches() {
             br="${br#refs/remotes/}"
             remote="${br%%/*}"
             crowbar_remote_exists "$remote" || continue
-            br="${br#${remote}/"
+            br="${br#${remote}/}"
             [[ ${branches[$br]} ]] && continue
             git branch "$br" "$remote/$br"
             git config "branch.$br.remote" "$remote"
