@@ -1103,17 +1103,16 @@ sync_everything() {
 	    continue
 	fi
     done
-    # Finished with barclamps, now for crowbar.
-    debug "Syncing crowbar"
-    in_repo merge_or_rebase_from_remote "$(remote_for_branch master)" master
-    sync_repo "$CROWBAR_DIR" "$@" || \
-	die "Could not sync Crowbar with origin branches"
     if [[ $unsynced_barclamps ]]; then
 	echo "Unable to sync origin with current master in:" >&2
 	echo "  ${unsynced_barclamps[*]}"
-	res=1
+        echo
+        echo "Please fix things up and rerun sync."
+	return 1
     fi
-    [[ $res = 0 ]] && return 0
+    # Finished with barclamps, now for crowbar.
+    debug "Syncing crowbar"
+    in_repo merge_or_rebase_from_remote "$(remote_for_branch master)" master && return 0
     echo
     echo "Please fix things up and rerun sync."
     return 1
