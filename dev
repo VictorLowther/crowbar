@@ -249,7 +249,7 @@ remote_urlbase() {
 # Ignores submodules and unchecked-in directories that are git repositories.
 git_is_clean() {
     local line hpath ret=0 opt
-    local stat_cmd="git status --porcelain --ignore-submodules" quiet=''
+    local stat_cmd="git status --porcelain" quiet=''
     local paths=()
     while [[ $1 ]]; do
 	opt="$1"; shift
@@ -271,7 +271,7 @@ git_is_clean() {
 	    # complain otherwise.
 	    '??'*) hpath=${line%% ->*}
 		hpath=${hpath#* }
-		[[ -d $PWD/$hpath.git || -f $PWD/$hpath.git ]] && continue
+		[[ -d $PWD/$hpath.git || -f $PWD/$hpath.git || $hpath = barclamps/ ]] && continue
 		ret=1; break;;
 	    '') continue;;
 	    *) ret=1; break;;
@@ -780,7 +780,7 @@ setup() {
     local -A touched_branches barclamps
     [[ $(in_repo git symbolic-ref HEAD) = refs/heads/master ]] || \
 	die "You must be on the master branch in Crowbar to run setup!"
-    crowbar_is_clean || \
+    barclamps_are_clean || \
 	die "Crowbar repo must be clean before trying to set things up!"
     # Make sure we have Github login credentials as the very first thing.
     [[ $DEV_GITHUB_ID ]] || {
@@ -977,7 +977,7 @@ __pin_release() {
 }
 
 pin_release() {
-    crowbar_is_clean || die "Crowbar must be clean before pinning $1"
+    barclamps_are_clean || die "Crowbar must be clean before pinning $1"
     if __pin_release "$@"; then
         git commit -m "Pinned barclamps in $1 to ${2:-current HEAD}"
         switch_release
@@ -1727,7 +1727,7 @@ build_crowbar() {
     target_branch=$(current_build)
     target_branch=${target_branch##*/}
     [[ $1 ]] || { current_build; return 0; }
-    crowbar_is_clean || exit 1
+    barclamps_are_clean || exit 1
     while [[ $1 ]]; do
 	case $1 in
 	    --os) shift; target_os="$1";;
@@ -1762,7 +1762,7 @@ reset_branch() {
 }
 
 reset_release() {
-    crowbar_is_clean || exit 1
+    barclamps_are_clean || exit 1
     local target_release=$(current_release) target=backup
     local -A barclamp_targets
     while [[ $1 ]]; do
