@@ -640,7 +640,7 @@ update_barclamp_file_cache() {
 
 # Check to see if the barclamp package cache needs update.
 barclamp_pkg_cache_needs_update() {
-    local pkg pkgname arch bcs=() bc
+    local pkg pkgname arch bcs=() bc ret=1
     local -A pkgs
 
     [[ $need_update = true || ${FORCE_BARCLAMP_UPDATE["$1"]} = true ]] && return 0
@@ -668,15 +668,15 @@ barclamp_pkg_cache_needs_update() {
                 continue 2
             fi
         done
-        debug "$pkg is not cached, and $1 needs it."
-        return 0
+        debug "Package $pkg is not cached, and $1 needs it."
+        ret=0
     done
-    return 1
+    return $ret
 }
 
 # Check to see if the barclamp gem cache needs an update.
 barclamp_gem_cache_needs_update() {
-    local pkg pkgname bc
+    local pkg pkgname bc ret=1
     local -A pkgs
     # Second, check to see if we have all the gems we need.
     for pkg in ${BC_GEMS["$1"]}; do
@@ -686,34 +686,39 @@ barclamp_gem_cache_needs_update() {
             [[ $(find "$bc_cache" \
                 -name "$pkg*.gem" -type f) = *.gem ]] && continue 2
         done
-        return 0
+        debug "Gem $pkg is not cached, and $1 needs it."
+        ret=0
     done
-    return 1
+    return $ret
 }
 
 # CHeck to see if we are missing any raw packages.
 barclamp_raw_pkg_cache_needs_update() {
-    local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs"
+    local pkg bc_cache="$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" ret=1
     mkdir -p "$bc_cache"
     # Third, check to see if we have all the raw_pkgs we need.
     for pkg in ${BC_RAW_PKGS["$1"]} ${BC_PKG_SOURCES["$1"]}; do
-        [[ -f $bc_cache/${pkg##*/} ]] || return 0
+        [[ -f $bc_cache/${pkg##*/} ]] && continue
+        debug "Raw package $pkg is not cached, and $1 needs it."
+        ret=0
     done
-    return 1
+    return $ret
 }
 
 # Check to see if we are missing any raw files.
 barclamp_file_cache_needs_update() {
-    local pkg dest bc_cache="$CACHE_DIR/barclamps/$1/files"
+    local pkg dest bc_cache="$CACHE_DIR/barclamps/$1/files" ret=1
     mkdir -p "$bc_cache"
     # Fourth, check to make sure we have all the extra_pkgs we need.
     while read pkg; do
         dest=${pkg#* }
         [[ $dest = $pkg ]] && dest=''
         pkg=${pkg%% *}
-        [[ -f $bc_cache/$dest/${pkg##*/} ]] || return 0
+        [[ -f $bc_cache/$dest/${pkg##*/} ]] && continue
+        debug "File $pkg is not cached, and $1 needs it."
+        ret=0
     done < <(write_lines "${BC_EXTRA_FILES[$1]}")
-    return 1
+    return $ret
 }
 
 # Some helper functions
