@@ -580,7 +580,7 @@ set_url_remote() {
     repo="$2/$repo"
     git ls-remote "$repo" refs/heads/master &>/dev/null || {
 	debug "No git repo at $repo, skipping."
-	return 0
+	return 1
     }
     git remote set-url "$1" "$repo"
     git fetch "$1"
@@ -592,21 +592,16 @@ sync_barclamp_remotes() {
     # We will ignore the origin remote.
     local remote urlbase remote_repo barclamp_repo
     while read remote urlbase; do
-	barclamp_repo="$(get_repo_cfg "submodule.barclamps/$bc.url")"
-	barclamp_repo="${barclamp_repo##*/}"
-	barclamp_repo="${barclamp_repo##*:}"
-	barclamp_repo="${barclamp_repo}"
-	remote_repo=$(in_barclamp "$1" git_url_for_remote "$remote")
-	[[ ${remote_repo%.git} = $urlbase/${barclamp_repo%.git} ]] && continue
-	local update_tracking=true
-	debug "Synchronizing remotes for barclamp $bc"
+	remote_repo=$(in_barclamp "$1" git_url_for_remote "$remote") || continue
+	[[ ${remote_repo%.git} = $urlbase/barclamp-$1 ]] && continue
+	debug "Synchronizing remote $remote for barclamp $1"
 	if in_barclamp "$1" git_remote_exists "$remote"; then
-	    in_barclamp "$1" set_url_remote "$remote" "$urlbase" || \
-		die "Could not update remote $remote for barclamp $1 in sync_barclamp_remotes"
+	    in_barclamp "$1" set_url_remote "$remote" "$urlbase" || continue
 	else
 	    in_barclamp "$1" add_remote "$remote" "$urlbase" || \
 		die "Could not add new remote $remote for barclamp $1 in sync_barclamp_remotes"
 	fi
+        local update_tracking=true
     done < <(show_remote)
     if [[ $update_tracking ]]; then
 	in_barclamp "$1" update_tracking_branches
@@ -692,7 +687,13 @@ remote_wrapper() {
 	show) shift;
 	    show_remote "$1"
 	    return;;
-	sync) action=sync_barclamp_remotes;;
+	sync)
+            for bc in "$CROWBAR_DIR/barclamps/"*; do
+                [[ -d $bc/.git || -f $bc/.git ]] || continue
+                 sync_barclamp_remotes "${bc##*/}"
+            done
+            return
+            ;;
 	priority)
 	    crowbar_remote_exists "$2" || \
 		die "Remote $2 must be configured before you can set its priority."
