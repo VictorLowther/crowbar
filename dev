@@ -1805,7 +1805,7 @@ reset_release() {
 flatten_crowbar() {
     local r bc br rel rel_parent rel_dir gmode gtype gsha gpath build
     local br_re='^refs/(heads|remotes/[^/]+)/(.*)$'
-    local bc_url_re='^submodule\.(.+)\.url=.+/([^/]+)$'
+    local bc_url_re='^submodule\.(.+)\.url=.+[:/]([^/:]+)$'
     local -A remotes
     if [[ ! $1 ]]; then
         remotes[$(origin_remote)]=true
