@@ -375,7 +375,6 @@ do_crowbar_build() {
 	cp -r "$CROWBAR_DIR/$d"/* "$BUILD_DIR/extra"
     done
     [[ -d $CROWBAR_DIR/change-image ]] && cp -r "$CROWBAR_DIR/change-image/"* "$BUILD_DIR"
-    done
 
     # Add critical build meta information to build-info
     echo "build-timestamp: $(date '+%F %T %z')" > "$BUILD_DIR/build-info"
