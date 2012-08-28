@@ -185,6 +185,7 @@ switch_release() {
 	fi
     fi
     switch_barclamps_to_build "$new_build"
+    in_repo ln -sf "releases/$new_build/extra" "extra"
 }
 
 checkout() {
@@ -1854,6 +1855,12 @@ flatten_crowbar() {
         [[ $(in_repo git ls-tree "$ref" .gitmodules) ]] || continue
         debug "Flattening $br into $build"
 	mkdir -p "$build_dir"
+        # The contents of the extra directly manages how the bits that are 
+        # staged on the ISO get installed.  We need to refactor how they are coded,
+        # but for now just grab what we need out of each build and put it in the
+        # appropriate place in .releases/
+        in_repo git checkout "$br" -- extra 
+        in_repo mv extra "$build_dir"
         # This is an evil, evil hack caused by some inconsistently named
         # barclamp repos. This finds the appropriate .gitmodules for a given
         # branch, reads and parses it as a git config file, and figures out
@@ -1882,6 +1889,12 @@ flatten_crowbar() {
 	    (cd "$build_dir"; git cat-file blob "$gsha" >"$gpath")
 	done < <(in_repo git ls-tree "$ref")
     done < <(git show-ref)
+    in_repo git rm -rf extra
+    in_repo rm -rf extra
+    grep -q '/extra' "$CROWBAR_DIR/.gitignore" || {
+        echo '/extra' >"$CROWBAR_DIR/.gitignore"
+        in_repo git add .gitignore
+    }
     # De-submoduleize barclamps.
     for bc in "$CROWBAR_DIR/barclamps/"*; do
         [[ -f "$bc"/.git ]] || continue
