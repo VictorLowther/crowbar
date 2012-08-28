@@ -161,7 +161,7 @@ switch_barclamps_to_build() {
 # Check out the appropriate release branch for all the barclamps in a given
 # release, and then check out the appropriate branch in the release.
 switch_release() {
-    local br bc current_branch new_base rel repo
+    local l br bc current_branch new_base rel repo
     local -A barclamps
     new_build="$(current_build)"
     if build_exists "$1"; then
@@ -185,8 +185,11 @@ switch_release() {
 	fi
     fi
     switch_barclamps_to_build "$new_build"
-    in_repo ln -sf "releases/$new_build/extra" "extra"
-    in_repo ln -sf "releases/$new_build/change-image" "change-image"
+    for l in change-image extra; do
+        [[ $(in_repo readlink -f $l) = "releases/$new_build/$l" ]] && continue
+        in_repo rm -f "$l"
+        in_repo ln -sf "releases/$new_build/$l" "$l"
+    done
 }
 
 checkout() {
