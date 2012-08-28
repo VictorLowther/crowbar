@@ -1818,9 +1818,9 @@ flatten_crowbar() {
             remotes[$r]=true
         done
     fi
-    crowbar_is_clean && \
-	[[ $(in_repo git symbolic-ref HEAD) = refs/heads/master ]] || \
-	die "You must be on master to flatten the hierarchy!"
+    #crowbar_is_clean && \
+    #	[[ $(in_repo git symbolic-ref HEAD) = refs/heads/master ]] || \
+    #	die "You must be on master to flatten the hierarchy!"
     while read sha ref; do
         # Special case handling for tags.
         # We make releases for them, and have their barclamp markers point to
