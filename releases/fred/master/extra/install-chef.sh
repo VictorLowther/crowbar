@@ -198,6 +198,19 @@ if [[ ! -x /etc/init.d/bluepill ]]; then
     echo "$(date '+%F %T %z'): Installing Chef"
     bring_up_chef || die "Could not start Chef!"
 
+    if [[ $OS_TOKEN = ubuntu-12.04 ]]; then
+        # HACKHACKHACKHACK
+        # Let me begin with that this is really crappy.  Ubuntu gem management is confusing
+        # at best or busted at worst.
+        # We have two versions of rack (one by deb and one by gem)
+        # They use each others files and break on 12.04
+        # So here comes the hack.  Currently, only thin needs the deb version and it can
+        # use most of the old one in gem with bits from the other.  Make this happen.
+        mv /usr/lib/ruby/vendor_ruby/rack.rb /usr/lib/ruby/vendor_ruby/rack-deb.rb
+        mv /usr/lib/ruby/vendor_ruby/rack /usr/lib/ruby/vendor_ruby/rack-deb
+        sed -i -e "s/\/rack\//\/rack-deb\//g" /usr/lib/ruby/vendor_ruby/thin.rb
+        # HACKHACKHACKHACK
+    fi
     chef_services=(rabbitmq-server couchdb chef-server chef-server-webui \
         chef-solr chef-expander chef-client)
     # Have Bluepill manage our Chef services instead of letting sysvinit do it.
