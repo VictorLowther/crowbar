@@ -1933,14 +1933,14 @@ flatten_crowbar() {
 purge_submodule_metadata() (
     cd "$CROWBAR_DIR"
     [[ -f .gitmodules ]] || die "Submodules have already been purged."
-    submod_re='$submodule\.([^.]+)\.url'
+    submod_re='^submodule\.([^.]+)\.url'
     while read line; do
-        [[ $line =~ submod_re ]] || continue
+        [[ $line =~ $submod_re ]] || continue
         line="${BASH_REMATCH[1]}"
         git config --remove-section "submodule.$line"
-        [[ $(git ls-tree HEAD "$line") = '160000 commit'* ]] || continue
+        [[ $(git ls-tree -r HEAD "$line") = '160000 commit'* ]] || continue
         git rm --cached "$line"
-    done < <(git config --list)
+    done < <(git config --list |grep '^submodule')
     git rm .gitmodules
     rm .gitmodules
 )
