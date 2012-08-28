@@ -340,7 +340,7 @@ do_crowbar_build() {
 	debug "Attempting to build Sledgehammer:"
 	"$CROWBAR_DIR/build_sledgehammer.sh" || \
 	    die "Unable to build Sledgehammer. Cannot build Crowbar."
-9    fi
+    fi
 
     # Fetch the OS ISO if we need to.
     [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
@@ -541,6 +541,7 @@ do_crowbar_build() {
     fi
     echo "$(date '+%F %T %z'): Finished."
 }
+
 if [[ $__skip_lock = true ]]; then
     do_crowbar_build
 else
