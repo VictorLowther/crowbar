@@ -186,6 +186,7 @@ switch_release() {
     fi
     switch_barclamps_to_build "$new_build"
     in_repo ln -sf "releases/$new_build/extra" "extra"
+    in_repo ln -sf "releases/$new_build/change-image" "change-image"
 }
 
 checkout() {
@@ -1804,7 +1805,7 @@ reset_release() {
 }
 
 flatten_crowbar() {
-    local r bc br rel rel_parent rel_dir gmode gtype gsha gpath build
+    local r b bc br rel rel_parent rel_dir gmode gtype gsha gpath build
     local br_re='^refs/(heads|remotes/[^/]+)/(.*)$'
     local bc_url_re='^submodule\.(.+)\.url=.+[:/]([^/:]+)$'
     local -A remotes
@@ -1859,8 +1860,10 @@ flatten_crowbar() {
         # staged on the ISO get installed.  We need to refactor how they are coded,
         # but for now just grab what we need out of each build and put it in the
         # appropriate place in .releases/
-        in_repo git checkout "$br" -- extra 
-        in_repo mv extra "$build_dir"
+        for b in change-image extra; do
+            in_repo git checkout "$br" -- "$b" 
+            in_repo mv "$b" "$build_dir"
+        done
         # This is an evil, evil hack caused by some inconsistently named
         # barclamp repos. This finds the appropriate .gitmodules for a given
         # branch, reads and parses it as a git config file, and figures out
@@ -1889,10 +1892,11 @@ flatten_crowbar() {
 	    (cd "$build_dir"; git cat-file blob "$gsha" >"$gpath")
 	done < <(in_repo git ls-tree "$ref")
     done < <(git show-ref)
-    in_repo git rm -rf extra
-    in_repo rm -rf extra
+    in_repo git rm -rf extra change-image
+    in_repo rm -rf extra change-image
     grep -q '/extra' "$CROWBAR_DIR/.gitignore" || {
-        echo '/extra' >"$CROWBAR_DIR/.gitignore"
+        echo '/extra' >>"$CROWBAR_DIR/.gitignore"
+        echo '/change-image' >>"$CROWBAR_DIR/.gitignore"
         in_repo git add .gitignore
     }
     # De-submoduleize barclamps.
@@ -1917,6 +1921,7 @@ flatten_crowbar() {
     in_repo git add releases
     in_repo git config 'crowbar.build' 'development/master'
     in_repo git commit -m "Added flattened Crowbar metadata."
+    switch_release
 }
 
 setup_unit_tests() {

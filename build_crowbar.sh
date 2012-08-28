@@ -370,12 +370,11 @@ do_crowbar_build() {
     # The ordering here is designed to always have the most specific
     # version of the file for a build wind up staged on the DVD, without
     # having to walk the whole directory tree.
-    for rd in "$CROWBAR_DIR" "$(release_cfg_dir)" "$(build_cfg_dir)"; do
-        for d in "extra" "$OS-common" "$OS_TOKEN-extra"; do
-	    [[ -d $rd/$d ]] || continue
-	    cp -r "$rd/$d"/* "$BUILD_DIR/extra"
-        done
-        [[ -d "$rd/change-image" ]] && cp -r "$rd/change-image/"* "$BUILD_DIR"
+    for d in "extra" "$OS-common" "$OS_TOKEN-extra"; do
+	[[ -d $$CROWBAR_DIR/$d ]] || continue
+	cp -r "$CROWBAR_DIR/$d"/* "$BUILD_DIR/extra"
+    done
+    [[ -d $CROWBAR_DIR/change-image ]] && cp -r "$CROWBAR_DIR/change-image/"* "$BUILD_DIR"
     done
 
     # Add critical build meta information to build-info
