@@ -77,14 +77,14 @@ add_repos() {
     (   cd "$CHROOT"
         for f in etc/yum.repos.d/*; do
             [[ -f "$f" ]] || continue
-            in_chroot /bin/grep -q '^proxy=' "/$f" && continue
-            in_chroot /bin/grep -q '^baseurl=http://.*127\.0\.0\.1.*' "/$f" && \
+            in_chroot /bin/grep -q "'^proxy='" "/$f" && continue
+            in_chroot /bin/grep -q "'^baseurl=http://.*127\.0\.0\.1.*'" "/$f" && \
                 continue
-            in_chroot sed -i "/^name/ a\proxy=http://$PROXY_HOST:$PROXY_PORT" "$f"
+            in_chroot sed -i "'/^name/ a\proxy=http://$PROXY_HOST:$PROXY_PORT'" "$f"
             [[ $PROXY_USER ]] && \
-                in_chroot sed -i "/^proxy/ a\proxy_username=$PROXY_USER" "$f"
+                in_chroot sed -i "'/^proxy/ a\proxy_username=$PROXY_USER'" "$f"
             [[ $PROXY_PASSWORD ]] && \
-                in_chroot sed -i "^/proxy_username/ a\proxy_password=$PROXY_PASSWORD" "$f"
+                in_chroot sed -i "'^/proxy_username/ a\proxy_password=$PROXY_PASSWORD'" "$f"
             : ;
         done
     )
@@ -175,21 +175,21 @@ __make_chroot() {
             "/usr/lib/python2.4/site-packages/urlgrabber.broke/"
     done
     # Make sure yum does not throw away our caches for any reason.
-    in_chroot /bin/sed -i -e '/keepcache/ s/0/1/' /etc/yum.conf
+    in_chroot /bin/sed -i -e "'/keepcache/ s/0/1/'" /etc/yum.conf
     in_chroot "echo 'exclude = *.i?86' >>/etc/yum.conf"
 
     [[ $USE_PROXY = "1" ]] && (
         cd "$CHROOT"
         for f in etc/yum.repos.d/*; do
             [[ -f "$f" ]] || continue
-            in_chroot /bin/grep -q '^proxy=' "/$f" && continue
-            in_chroot /bin/grep -q '^baseurl=http://.*127\.0\.0\.1.*' "/$f" && \
+            in_chroot /bin/grep -q "'^proxy='" "/$f" && continue
+            in_chroot /bin/grep -q "'^baseurl=http://.*127\.0\.0\.1.*'" "/$f" && \
                 continue
-            in_chroot sed -i "/^name/ a\proxy=http://$PROXY_HOST:$PROXY_PORT" "$f"
+            in_chroot sed -i "'/^name/ a\proxy=http://$PROXY_HOST:$PROXY_PORT'" "$f"
             [[ $PROXY_USER ]] && \
-                in_chroot sed -i "/^proxy/ a\proxy_username=$PROXY_USER" "$f"
+                in_chroot sed -i "'/^proxy/ a\proxy_username=$PROXY_USER'" "$f"
             [[ $PROXY_PASSWORD ]] && \
-                in_chroot sed -i "^/proxy_username/ a\proxy_password=$PROXY_PASSWORD" "$f"
+                in_chroot sed -i "'^/proxy_username/ a\proxy_password=$PROXY_PASSWORD'" "$f"
             : ;
         done
     )
@@ -205,7 +205,7 @@ __make_chroot() {
     # If we are using a proxy, fastestmirror usually does the Wrong Thing.
     [[ $USE_PROXY = 1 && \
         -f $CHROOT/etc/yum/pluginconf.d/fastestmirror.conf ]] && \
-        in_chroot sed -ie '/^enabled/ s/1/0/' \
+        in_chroot sed -ie "'/^enabled/ s/1/0/'" \
         /etc/yum/pluginconf.d/fastestmirror.conf
     if [[ $ALLOW_CACHE_UPDATE = true ]]; then
         in_chroot 'cp /etc/yum.repos.d.old/* /etc/yum.repos.d'
