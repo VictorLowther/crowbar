@@ -340,7 +340,7 @@ do_crowbar_build() {
 	debug "Attempting to build Sledgehammer:"
 	"$CROWBAR_DIR/build_sledgehammer.sh" || \
 	    die "Unable to build Sledgehammer. Cannot build Crowbar."
-    fi
+9    fi
 
     # Fetch the OS ISO if we need to.
     [[ -f $ISO_LIBRARY/$ISO ]] || fetch_os_iso
@@ -370,11 +370,14 @@ do_crowbar_build() {
     # The ordering here is designed to always have the most specific
     # version of the file for a build wind up staged on the DVD, without
     # having to walk the whole directory tree.
-    for d in "extra" "$OS-common" "$OS_TOKEN-extra"; do
-	[[ -d $$CROWBAR_DIR/$d ]] || continue
+    d="$(build_cfg_dir)" && [[ -d $d/extra && -d $d/change-image ]] || \
+        die "Cannot find extra and change-image directories for $(current_build)!"
+    cp -r "$d/extra"/* "$BUILD_DIR/extra"
+    cp -r "$d/change-image/"* "$BUILD_DIR"
+    for d in "$OS-common" "$OS_TOKEN-extra"; do
+	[[ -d $CROWBAR_DIR/$d ]] || continue
 	cp -r "$CROWBAR_DIR/$d"/* "$BUILD_DIR/extra"
     done
-    [[ -d $CROWBAR_DIR/change-image ]] && cp -r "$CROWBAR_DIR/change-image/"* "$BUILD_DIR"
 
     # Add critical build meta information to build-info
     echo "build-timestamp: $(date '+%F %T %z')" > "$BUILD_DIR/build-info"
