@@ -1194,243 +1194,33 @@ sync_everything() {
 }
 
 dev_short_help() {
-    cat <<EOF
-$0: Development helper for Crowbar
-
-backup:             Back up changes without merging them into upstream.
-barclamps-in-build: Shows the barclamps that are members of a build.
-build:              Show the current build or build Crowbar
-builds:             Show the builds in the current release.
-checkout:           Check out a branch in the current release.
-clear-unit-tests:   Remove unit test environment.
-create-barclamp:    Create a new barclamp.
-current-build:      Shows the current build you are working on.
-cut_release:        Cut a new release from the current one.
-erase-feature:      Forget about branches for a feature you are not working on.
-fetch:              Fetch updates from configured upstream repositories.
-find-parent:        Find the closest parent of a release or feature.
-flatten:            Flatten the main Crowbar repo branching structure.
-help:               Show detailed help.
-is_clean:           Test to see if all work is committed.
-missing-barclamps:  Show missing barclamps.
-new-feature:        Create a new feature bundle from the current release.
-orphaned-barclamps: Show barclamps that are not part of any build.
-pin:                Pin a release, build, or barclamp in a build to a specific rev
-pull-requests-gen:  Issue pull requests.
-pull-requests-prep: Prepare to issue pull requests.
-push:               Unconditionally push a branch to your personal repos.
-refresh-tracking:   Update git branch tracking metadata.
-release:            Show the current release or feature you are on.
-releases:           Show all releases and features in your local repos.
-reload-unit-tests:  Reload the data for the unit test environment
-remote:             Manage remotes across all Crowbar repositories.
-reset-release:      Resets a release to upstream or your last backup.
-run-unit-tests:     Run unit and BDD tests
-scrub-merged-pulls: Scrub merged pull request branches.
-setup-unit-tests:   Sets up unit test environment
-setup:              Sets up a Crowbar checkout for use with dev.
-switch:             Switch to a different release.
-sync:               Synchronize fetched updates with the local repos.
-unpin:              Unpin a release, build, or barclamp in a build.
-
-For more detailed help, use the "help" command or read README.dev-and-workflow.
-EOF
-    }
+    local cmd
+    echo "$0: Development helper for Crowbar"
+    echo "Available commands:"
+    echo
+    for cmd in $(for cmd in "${!DEV_SHORT_HELP[@]}"; do echo "$cmd"; done |sort); do
+        echo "${cmd}: ${DEV_SHORT_HELP[$cmd]}"
+    done
+    echo
+    echo 'For more detailed help, use the "help" command or read README.dev-and-workflow.'
+}
 
 dev_help () {
-    less <<EOF
-$0: Development helper for Crowbar.
-
-Command line options:
-
-  setup -- Sets up your local Crowbar repositories for working with the
-	   new Github regime.  This command will prompt for your Github
-	   login information, make sure you have local copies of all the
-	   barclamp repos that Crowbar references checked out, create personal
-	   forks of all the crowbar repos from the $(origin_remote) account on
-	   github, and create the appropriate remotes needed for day-to-day
-	   operation.
-
-  is_clean -- Check to see if the barclamps have everything committed
-	      with no untracked files, and check to see if the main
-	      Crowbar repository is clean while ignoring submodule references.
-
-  fetch -- Fetch all changes from all of the configured Crowbar repositories.
-	   Does not try to merge any changes into your local repository.
-	   You can run a fetch at any time without disturbing your working
-	   code, provided you have network connectivity.
-	   If you pass the name of a remote, fetch will try to fetch changes
-	   from that remote in the main Crowbar repository and in each of the
-	   barclamps
-
-  remote -- Manage remotes across all $(origin_remote) repositories.  It has the
-	    following subcommands:
-	    add <remote> <urlbase> : The add subcommand adds a new remote to
-		the Crowbar repositories.
-	    rm <remote> : The rm subcommand removes an already-existing remote
-		from the Crowbar repositories.
-	    set-url <remote> <urlbase> : The set-url subcommands allows you to
-		give an existing remote a new URL in all the subrepositories.
-	    show <remote> : The show subcommand shows remote information for
-		the named remote in all the Crowbar repositories.
-	    sync : Synchronize configured remotes from the main Crowbar repository
-		to any cloned barclamps.
-	    priority <remote> <number>: Set the priority of a remote.
-		This controls how local branches bind to remote branches -- any
-		local branches that have a corresponding branch in a remote will
-		be configured to track the remote with the smallest priority.
-		By convention, the repository you cloned from will have a
-		priority of 5, the personal repositiry on Github will have a
-		priority of 95, and everything else will have a priority of 50.
-		You can change the priority of a remote at any time, and your
-		local tracking branches will be updated to reflect the new
-		remote priority list.
-
-	   Note that <urlbase> is the URL got will use without the actual
-	   repository name.  dev assumes that the new remote uses the same
-	   repository name as the origin remote does, and things will fail
-	   badly if this assumption is violated.
-	   As an example, the urlbase for
-	      https://github.com/dellcloudedge/crowbar.git is
-	      https://github.com/dellcloudedge
-
-  backup -- Push any locally committed changes in any repositories that were
-	    initially forked from $(origin_remote) into your personal Github forks.
-	    You can run a backup at any time without disturbing your working
-	    code, provided you have network connectivity.
-
-  sync -- Merge any changes that have been fetched into the current
-	  repositories.  dev is_clean should exit without any messages before
-	  running this command.  If you pass an argument to sync, it will
-	  interpret that argument as a release or feature name and try to
-	  merge any changes in common branches from that release.
-
-  push -- Unconditionally push a branch (or branches) to your crowbar Github
-	  fork.  Any arguments are interpreted as branch names to push, and
-	  if there are no arguments it pushes the branch you are currently on.
-	  Any branches pushed using this command will automatically be backed
-	  up when dev backup is run as well.
-
-  pull-requests-prep -- Fetches, Syncs, and backs up all changes, then figures
-			out the set of barclamps and crowbar branches that
-			need to have pull requests created.  The output is a
-			command line that canbe copied and executed.
-
-  pull-requests-gen -- Creates a set of pull requests with similar ids and
-		       links based upon the barclamps dependency trees.  These
-		       will be automatically sent to Github for processing and
-		       review by the Dell review team.
-
-  release -- Shows the current release that dev is operating on.
-
-  releases -- Lists the releases to choose from.
-
-  builds -- Shows the builds that are part of the specified release,
-	      or the current release if no release is specified.
-
-  current-build -- Shows the build that the barcmamps are set to.
-
-  barclamps-in-build -- Shows all the barclamps that are members of the
-                        build passed as the first argument, or of the current
-                        build if no argument is passed.
-
-  switch -- Change current release to the specified release, or the current
-	    release if no release name was passed.  This has the side effect
-	    of making sure that all the barclamps are on the proper branch for
-	    that release. dev switch will also set any barclamps that are not
-	    used in the new branch to an empty branch.
-
-  checkout -- Change branch but stays in the release context if possible.
-	      Checkout will ensure that any barclamps that are ont being used
-	      by the new branch are set to an empty branch.
-
-  build -- Set up the local trees and build a crowbar ISO.  Parameters:
-	   --os = operating system to stage Crowbar on to.
-	   --release = Release of Crowbar to build.
-	   --branch = Branch withina release of Crowbar to build
-	   --exact = If present, dev will run git submodule update after
-		     processing the --release and --branch options, and the
-		     --no-cache-update and --no-metadata-update parameters will
-		     be passed to build_crowbar.sh.
-		     If not present, the submodules will be checked out to the
-		     appropriate master branch for the release.
-	   Any other parameters will be passed unchanged to build_crowbar.sh.
-	   See README.build for more information on building Crowbar.
-
-  cut_release -- DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING! Makes a new set
-		 of branches and barclamp branches from the current release into
-		 the new named release.  Must provide a unique new name.
-
-  new-feature -- Create a new set of feature branches.  Must provide a unique
-		 new name, and you must be in the development release when you
-		 run this command.  Internally, features are implemented as
-		 releases in the feature/ namespace, so all the other release
-		 manipulation commands will work with them.
-
-  erase-feature -- Erase feature branches created with new-feature.
-		   This command is intended to be run after a feature has been
-		   merged into the main devleopment stream to avoid cluttering
-		   up the output of the git branch command.  It will fail if
-		   the feature has not been merged into the development release.
-
-  find-parent -- Find the parent of a release or feature based on the which
-		 of the releases have the shortest merge distance from the
-		 release passed to find-parent, so it is possible for more than
-		 one release to be considered to be the parent. If that turns
-		 out to be the case, find-parent wil ask you to disambiguate.
-
-  reset-release -- Reset a release or feature to either the last pull from
-		   upstream or your last backup.  Paremeters:
-		   --release: Release to reset.  Defaults to current.
-		   --target: Either "upstream" or "backup".
-			     Defaults to "backup".
-		   --skip-master: If set, will skip resetting the master branch
-				  in the release and any barclamps that the
-				  master branch pulls in.  Is automatically set
-				  if --release is not specified.
-		   --skip-barclamps: Skip resetting the the barclamps for the
-				     release.
-
-  pin -- Pin a release, build, or barclamp in a build to a specific git commit-ish.
-         Normally, barclamps in a build are allowed to track the appropriate
-         branches for a release.  Pin allows you to either force them to track a
-         nonstandard branch, or lock them at a specific commit or tag.
-
-         The first argument to pin is one of a release, a build in a release, or a
-         barclamp in a release in the following formats:
-         <release>
-         <release>/<build>
-         <release>/<build>/<barclamp>
-
-         The second argument to pin is the branch or tag to pin the barclamps to.
-         If nothing is passed, pin will pin the barclamps at their current HEAD.
-
-  unpin -- Undoes the effect of a pin bu having barclamps track the default branch
-           for the passed release.
-
-           The first argument to unpin is the same as for pin.
-           There is no second argument.
-
-  scrub-merged-pulls -- Delete any tracking branches created as placeholders
-                        for pull requests.  Without any options, this just
-                        scrubs tracking branches for pull requests that have
-                        already been merged.  If --all is passed as an option,
-                        then all pull request tracking branches will be deleted.
-
-  setup-unit-tests -- Sets up a unit test environment with all barclamps in /tmp/crowbar.
-                      Requires sudo access to install Ubuntu packages.
-
-  reload-unit-tests -- Reload the code and database for the units.  Does not re-bundle.
-
-  run-unit-tests -- Run BDD and unit tests from the /tmp/crowbar environment.
-
-  clear-unit-tests -- Removes a unit test environment in /tmp/crowbar.
-			for pull requests.  Without any options, this just
-			scrubs tracking branches for pull requests that have
-			already been merged.  If --all is passed as an option,
-			then all pull request tracking branches will be deleted.
-EOF
-    }
+    echo "$0: Development helper for Crowbar"
+    echo
+    if [[ $1 ]]; then
+        if [[ ${DEV_LONG_HELP[$1]} ]]; then
+            echo "$1: ${DEV_LONG_HELP[$1]}"
+        else
+            echo "$1: No help for $1"
+        fi
+    else
+        for cmd in $(for cmd in "${!DEV_LONG_HELP[@]}"; do echo "$cmd"; done |sort); do
+            echo "${cmd}: ${DEV_LONG_HELP[$cmd]}"
+            echo
+        done | less
+    fi
+}
 
 # Tests to see if the given branch in a repo needs a pull request.
 branch_needs_pull_req() {
@@ -2146,6 +1936,255 @@ DEV_COMMANDS["setup-unit-tests"]="setup_unit_tests"
 DEV_COMMANDS["switch"]="switch_release"
 DEV_COMMANDS["sync"]="sync_everything"
 DEV_COMMANDS["unpin"]="unpin_release"
+
+# Hash for short help
+DEV_SHORT_HELP["backup"]="            Back up changes without merging them into upstream."
+DEV_SHORT_HELP["barclamps-in-build"]="Shows the barclamps that are members of a build."
+DEV_SHORT_HELP["branch"]="            Show the build you are working on. Synonym for build with no args."
+DEV_SHORT_HELP["branches"]="          Show the builds in the current release.  Synonym for builds."
+DEV_SHORT_HELP["build"]="             Show the current build or build Crowbar"
+DEV_SHORT_HELP["builds"]="            Show the builds in the current release."
+DEV_SHORT_HELP["checkout"]="          Check out a branch in the current release."
+DEV_SHORT_HELP["clear-unit-tests"]="  Remove unit test environment."
+DEV_SHORT_HELP["clone-barclamps"]="   Clone barclamps."
+DEV_SHORT_HELP["create-barclamp"]="   Create a new barclamp."
+DEV_SHORT_HELP["current-build"]="     Shows the current build you are working on."
+DEV_SHORT_HELP["cut_release"]="       Cut a new release from the current one."
+DEV_SHORT_HELP["erase-feature"]="     Forget about branches for a feature you are not working on."
+DEV_SHORT_HELP["fetch"]="             Fetch updates from configured upstream repositories."
+DEV_SHORT_HELP["find-parent"]="       Find the closest parent of a release or feature."
+DEV_SHORT_HELP["flatten"]="           Flatten the main Crowbar repo branching structure."
+DEV_SHORT_HELP["help"]="              Show detailed help."
+DEV_SHORT_HELP["is_clean"]="          Test to see if all work is committed."
+DEV_SHORT_HELP["missing-barclamps"]=" Show missing barclamps."
+DEV_SHORT_HELP["new-feature"]="       Create a new feature bundle from the current release."
+DEV_SHORT_HELP["orphaned-barclamps"]="Show barclamps that are not part of any build."
+DEV_SHORT_HELP["pin"]="               Pin a release, build, or barclamp in a build to a specific rev"
+DEV_SHORT_HELP["pull-requests-gen"]=" Issue pull requests."
+DEV_SHORT_HELP["pull-requests-prep"]="Prepare to issue pull requests."
+DEV_SHORT_HELP["purge-submodules"]="  Purge submodule information for the master branch in Crowbar."
+DEV_SHORT_HELP["push"]="              Unconditionally push a branch to your personal repos."
+DEV_SHORT_HELP["refresh-tracking"]="  Update git branch tracking metadata."
+DEV_SHORT_HELP["release"]="           Show the current release or feature you are on."
+DEV_SHORT_HELP["releases"]="          Show all releases and features in your local repos."
+DEV_SHORT_HELP["reload-unit-tests"]=" Reload the data for the unit test environment"
+DEV_SHORT_HELP["remote"]="            Manage remotes across all Crowbar repositories."
+DEV_SHORT_HELP["reset-release"]="     Resets a release to upstream or your last backup."
+DEV_SHORT_HELP["run-unit-tests"]="    Run unit and BDD tests."
+DEV_SHORT_HELP["scrub-merged-pulls"]="Scrub merged pull request branches."
+DEV_SHORT_HELP["setup-unit-tests"]="  Sets up unit test environment."
+DEV_SHORT_HELP["setup"]="             Sets up a Crowbar checkout for use with dev."
+DEV_SHORT_HELP["switch"]="            Switch to a different release."
+DEV_SHORT_HELP["sync"]="              Synchronize fetched updates with the local repos."
+DEV_SHORT_HELP["unpin"]="             Unpin a release, build, or barclamp in a build."
+
+# Hash for long help
+DEV_LONG_HELP["setup"]="Perform initial setup of Crowbar.
+  Sets up your local Crowbar repositories for working with the new
+  Github regime.  This command will prompt for your Github login
+  information, make sure you have local copies of all the barclamp
+  repos that Crowbar references checked out, create personal forks of
+  all the crowbar repos from the $(origin_remote) account on github,
+  and create the appropriate remotes needed for day-to-day operation."
+DEV_LONG_HELP["is_clean"]="Check to make sure the repos are clean.
+  Check to see if the barclamps have everything committed with no
+  untracked files, and check to see if the main Crowbar repository is
+  clean while ignoring submodule references."
+DEV_LONG_HELP["fetch"]="Fetch changes from upstream.
+  Fetch all changes from all of the configured Crowbar repositories.
+  Does not try to merge any changes into your local repository.  You
+  can run a fetch at any time without disturbing your working code,
+  provided you have network connectivity.  If you pass the name of a
+  remote, fetch will try to fetch changes from that remote in the main
+  Crowbar repository and in each of the barclamps."
+DEV_LONG_HELP["remote"]="Manage remotes across all repositories.
+  Subcommands: 
+    add <remote> <urlbase> : The add subcommand adds a new remote to
+      the Crowbar repositories.
+    rm <remote> : The rm subcommand removes an already-existing remote
+      from the Crowbar repositories.
+    set-url <remote> <urlbase> : The set-url subcommands allows you to  
+      give an existing remote a new URL in all the subrepositories.
+    show <remote> : The show subcommand shows remote information for
+      the named remote in all the Crowbar repositories.
+    sync : Synchronize configured remotes from the main Crowbar repository
+      to any cloned barclamps.
+    priority <remote> <number>: Set the priority of a remote.
+      This controls how local branches bind to remote branches -- any
+      local branches that have a corresponding branch in a remote will
+      be configured to track the remote with the smallest priority.
+      By convention, the repository you cloned from will have a
+      priority of 5, the personal repositiry on Github will have a
+      priority of 95, and everything else will have a priority of 50.
+      You can change the priority of a remote at any time, and your
+      local tracking branches will be updated to reflect the new
+      remote priority list.
+  Note that <urlbase> is the URL git will use without the actual
+  repository name.  dev assumes that the new remote uses the same
+  repository name as the origin remote does, and things will fail
+  badly if this assumption is violated.  As an example, the urlbase
+  for:
+    https://github.com/dellcloudedge/crowbar.git
+  is: 
+    https://github.com/dellcloudedge"
+DEV_LONG_HELP["backup"]="Back up local changes to the personal remote.
+  Push any locally committed changes in any repositories that were
+  initially forked from $(origin_remote) into your personal Github
+  forks.  You can run a backup at any time without disturbing your
+  working code, provided you have network connectivity."
+DEV_LONG_HELP["sync"]="Synchronize local branches with their upstreams.
+  Merge any changes that have been fetched into the current
+  repositories.  dev is_clean should exit without any messages before
+  running this command.  If you pass an argument to sync, it will
+  interpret that argument as a release or feature name and try to
+  merge any changes in common branches from that release.  If you use
+  the --from command, sync will merge changes from the specified
+  remote into your local branches."
+DEV_LONG_HELP["push"]="Push a branch or branches to your personal remote.
+  Unconditionally push a branch (or branches) to your crowbar Github
+  fork.  Any arguments are interpreted as branch names to push, and if
+  there are no arguments it pushes the branch you are currently on.
+  Any branches pushed using this command will automatically be backed
+  up when dev backup is run as well."
+DEV_LONG_HELP["pull-requests-prep"]="Prepare to issue pull requests.
+  Fetches, Syncs, and backs up all changes, then figures out the set
+  of barclamps and crowbar branches that need to have pull requests
+  created.  The output is a command line that can be copied and
+  executed."
+DEV_LONG_HELP["pull-requests-gen"]="Generate pull requests to Github.
+  Creates a set of pull requests with similar ids and links based upon
+  the barclamps dependency trees.  These will be automatically sent to
+  Github for processing and review by the Dell review team."
+DEV_LONG_HELP["release"]="Shows the current release that dev is operating on."
+DEV_LONG_HELP["releases"]="Lists the releases to choose from."
+DEV_LONG_HELP["builds"]="Show builds in the current or specified release.
+  Shows the builds that are part of the specified release, or the
+  current release if no release is specified."
+DEV_LONG_HELP["current-build"]="Shows the build that the barclamps are set to."
+DEV_LONG_HELP["barclamps-in-build"]="Show barclamps in the current or specified build.
+  Shows all the barclamps that are members of the build passed as the
+  first argument, or of the current build if no argument is passed."
+DEV_LONG_HELP["switch"]="Switch to a new release or release/build.
+  Change current release to the specified release, or the current
+  release if no release name was passed.  This has the side effect of
+  making sure that all the barclamps are on the proper branch for that
+  release. dev switch will also set any barclamps that are not used in
+  the new branch to an empty branch."
+DEV_LONG_HELP["checkout"]="Check out a new build in the current release.
+   Change to a new build in the current release.  Checkout will ensure
+  that any barclamps that are ont being used by the new branch are set
+  to an empty branch."
+DEV_LONG_HELP["build"]="Build Crowbar or display the current working build.
+  If no arguments are passed to this command, it displays the current
+  build.  Otherwise, it will perform some local sanity checks and
+  build Crowbar based on the current release.
+  Parameters:
+    --os = operating system to stage Crowbar on to.
+    --release = Release or release/build of Crowbar to build.
+  Any other parameters will be passed unchanged to build_crowbar.sh.
+  See README.build for more information on building Crowbar."
+DEV_LONG_HELP["cut_release"]="Cut a new release of Crowbar.
+  DO NOT USE UNLESS YOU KNOW WHAT YOU ARE DOING!  Makes a new set of
+  branches and barclamp branches from the current release into the new
+  named release.  Must provide a unique new name."
+DEV_LONG_HELP["new-feature"]="Create a new set of feature branches.
+  You must provide a unique new name, and you must be in the
+  development release when you run this command.  Internally, features
+  are implemented as releases in the feature/ namespace, so all the
+  other release manipulation commands will work with them."
+DEV_LONG_HELP["erase-feature"]="Erase feature branches created with new-feature.
+  This command is intended to be run after a feature has been merged
+  into the main devleopment stream to avoid cluttering up the output
+  of the git branch command.  It will fail if the feature has not been
+  merged into the development release."
+DEV_LONG_HELP["find-parent"]="Display the parent release of the current feature.
+  Find the parent of a release or feature based on the which of the
+  releases have the shortest merge distance from the release passed to
+  find-parent, so it is possible for more than one release to be
+  considered to be the parent. If that turns out to be the case,
+  find-parent will ask you to disambiguate."
+DEV_LONG_HELP["reset-release"]="Reset a release or feature to the last backup or upstream.
+  Paremeters:
+    --release: Release to reset.  Defaults to current.
+    --target: Either 'upstream' or 'backup'. Defaults to 'backup'.
+  This command uses git reset --hard on the current release branches
+  in the barclamps, so you can lose your commits unless you take
+  precautions."
+DEV_LONG_HELP["pin"]="Pin a release, build, or barclamp in a build..
+  Normally, barclamps in a build are allowed to track the appropriate
+  branches for a release.  Pin allows you to either force them to
+  track a nonstandard branch, or lock them at a specific commit or
+  tag.  The first argument to pin is one of a release, a build in a
+  release, or a barclamp in a release in the following formats:
+    <release>
+    <release>/<build>
+    <release>/<build>/<barclamp>
+  The second argument to pin is the branch or tag to pin the barclamps
+  to.  If nothing is passed, pin will pin the barclamps at their
+  current HEAD."
+DEV_LONG_HELP["unpin"]="Undo the effect of a pin.
+  Unpin has barclamps track the default branch for the passed release.
+  The first argument to unpin is the same as for pin.  There is no
+  second argument."
+DEV_LONG_HELP["scrub-merged-pulls"]="Scrub merged pull request tracking branches.
+  Delete any tracking branches created as placeholders for pull
+  requests.  Without any options, this just scrubs tracking branches
+  for pull requests that have already been merged.  If --all is passed
+  as an option, then all pull request tracking branches will be
+  deleted."
+DEV_LONG_HELP["setup-unit-tests"]="Sets up a unit test environment.
+  This will create the environment with all barclamps in /tmp/crowbar.
+  Requires sudo access to install Ubuntu packages."
+DEV_LONG_HELP["reload-unit-tests"]="Reload the code and database for the units.  Does not re-bundle."
+DEV_LONG_HELP["run-unit-tests"]="Run BDD and unit tests from the /tmp/crowbar environment."
+DEV_LONG_HELP["clear-unit-tests"]="Removes a unit test environment in /tmp/crowbar."
+DEV_LONG_HELP["refresh-tracking"]="Update remote tracking information for all the branches.
+  Update remote tracking information for local branches in all the
+  repos.  This command is run internally whenever dev does anything that
+  updates remote availablity and priority or that might add or remove
+  branches from any of the repositories.  It updates git's per-branch
+  remote tracking metadata to reflect the current remote priority
+  order."
+DEV_LONG_HELP["clone-barclamps"]="Clone barclamps.
+  Clone any barclamps that may be missing from the current
+  environment, and update the remote mappings in any that do
+  exist. With no arguments, all barclamps from all releases will be
+  considered for cloning.  With a release or release/build, barclamps
+  from just that release or build will be considered."
+DEV_LONG_HELP["branch"]="Shows the build you are currently working on."
+DEV_LONG_HELP["purge-submodules"]="Purge submodule information from the master branch in the main Crowbar repository.
+  This should only be run after $0 flatten has been run, and you are satisfied with the results."
+DEV_LONG_HELP["help"]="Shows long help. Takes an optional dev command to show help on."
+DEV_LONG_HELP["flatten"]="Flatten the Crowbar repository
+  Migrate a Crowbar repository from:
+    Using a hierarchical branching structure to define releases and
+    builds with submodule references on the tips of the branches to
+    track what barclamps are part of what build
+  to:
+    Using a directory named releases in the master branch of the main
+    Crowbar repo to track release/branch to barclamp mappings.
+  If you are not responsible for maintaining a Crowbar repository for
+  your team, you should not need to use this command."
+DEV_LONG_HELP["orphaned-barclamps"]="Show barclamps that are not part of any build."
+DEV_LONG_HELP["missing-barclamps"]="Show barclamps that are referenced by a build, but not present locally.
+  This is usually caused by a build requiring a new barclamp.  You can
+  pull in missing barclamps with clone-barclamp if the barclamp is in
+  one of your configured remotes."
+DEV_LONG_HELP["create-barclamp"]="Create a new barclamp, but do not register it with a build.
+  The only argument is the name of the new barclamp, and the barclamp
+  will be created in $CROWBAR_DIR/barclamps."
+DEV_LONG_HELP["branches"]="Synonym for builds."
+
+# Verify that we have help for all commands.
+for cmd in "${!DEV_COMMANDS[@]}"; do
+    [[ ${DEV_SHORT_HELP[$cmd]} && ${DEV_LONG_HELP[$cmd]} ]] && continue
+    [[ ${DEV_SHORT_HELP[$cmd]} ]] || echo "Missing short help for $cmd"
+    [[ ${DEV_LONG_HELP[$cmd]} ]] || echo "Missing long help for $cmd"
+    ret=1
+done
+[[ $ret ]] && exit 1
+unset cmd ret
+
 
 # Handle some global option parsing.
 # This is mainly for --from and --to handling. 
