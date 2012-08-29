@@ -470,7 +470,8 @@ make_barclamp_pkg_metadata() {
         chroot_install $OS_METADATA_PKGS
         unset OS_METADATA_PKGS
     }
-    sudo mount --bind "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs" "$CHROOT/mnt"
+    sudo mount --bind "$(readlink -f "$CACHE_DIR/barclamps/$1/$OS_TOKEN/pkgs")" \
+        "$CHROOT/mnt"
     __make_barclamp_pkg_metadata "$1"
     sudo umount "$CHROOT/mnt"
 }
@@ -865,14 +866,15 @@ barclamps_in_build() {
 }
 
 barclamps_in_release() {
-    # $1 = release
-    release_exists "$1" || return 1
-    barclamp_finder "$1" '/barclamp-(.+)$'
+    local release="${1:-$(current_release)}"
+    release_exists "$release" || return 1
+    barclamp_finder "$release" '/barclamp-(.+)$'
 }
 
 builds_in_release() {
-    release_exists "$1" || return 1
-    barclamp_finder "$1" "releases/.+/([^/]+)/barclamp-crowbar"
+    local release="${1:-$(current_release)}"
+    release_exists "$release" || return 1
+    barclamp_finder "$release" "releases/.+/([^/]+)/barclamp-crowbar"
 }
 
 all_barclamps() {

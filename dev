@@ -10,6 +10,7 @@ export PATH="$PATH:/sbin:/usr/sbin:/usr/local/sbin"
 declare -A DEV_BRANCHES DEV_REMOTE_SOURCES DEV_REMOTE_BRANCHES DEV_ORIGIN_TYPES
 declare -a DEV_REMOTES DEV_ALL_REMOTES
 declare -A __AVAILABLE_REMOTES
+declare -A DEV_COMMANDS DEV_SHORT_HELP DEV_LONG_HELP
 # The generation of the dev tool this is.
 readonly DEV_VERSION=2
 
@@ -125,7 +126,7 @@ switch_barclamps_to_build() {
     build_exists "$1" || die "Build $1 does not exist"
     for bc in $(barclamps_in_build "$1"); do
 	[[ -d $CROWBAR_DIR/barclamps/$bc ]] || \
-	    die "Barclamp $bc does not exist locally. Please run dev setup to clone it."
+	    die "Barclamp $bc does not exist locally. Please run dev clone-barclamps to clone it."
     done
     for bc in "$CROWBAR_DIR/barclamps/"*; do
 	bc=${bc##*/}
@@ -343,33 +344,90 @@ fork_barclamp() {
     github_fork "$1" "barclamp-$2"
 }
 
+# Look for barclamps that a build references, but that we don't have locally
+find_missing_barclamps() {
+    # $1 = '', release, release/build
+    local bc barclamps=()
+    if build_exists "$1"; then
+        barclamps=($(barclamps_in_build "$1"))
+    elif release_exists "$1"; then
+        barclamps=($(barclamps_in_release "$1"))
+    else
+        barclamps=($(all_barclamps))
+    fi
+    for bc in "${barclamps[@]}"; do
+        bc="$CROWBAR_DIR/barclamps/$bc"
+        [[ -d $bc/.git || -f $bc/.git ]] && continue
+        echo "$bc"
+    done
+}
+
+find_orphaned_barclamps() {
+    local bc
+    local -A barclamps
+    for bc in "$CROWBAR_DIR/barclamps/"*; do
+        [[ -d $bc/.git || -f $bc/.git ]] || continue
+        barclamps["${bc##*/}"]=present
+    done
+    for bc in $(all_barclamps); do
+        [[ ${barclamps[$bc]} ]] && continue
+        echo "$bc"
+    done
+}
+
+# This is potentially expensive. 
+# If we already have a local copy of the barclamp, it is a quick lookup.
+# If we don't, we will try to find one at the remotes we care about.
+find_origin_remote_for_barclamp() {
+    # $1 = barclamp
+    local remote urlbase
+    if [[ -d $CROWBAR_DIR/barclamps/$1/.git ]]; then
+        # If the barclamp has already been cloned, this is easy.
+        in_barclamp "$bc" origin_remote
+        return $?
+    fi
+    for remote in $(sorted_remotes); do
+        urlbase="$(remote_urlbase "$remote")"
+        test_remote "$urlbase/barclamp-$1.git" || continue
+        echo $remote
+        return 0
+    done
+    return 1
+}
+
 # Perform an initial clone of a barclamp.  Takes care to ensure that
 # the origin remote is set appropriatly.
-clone_barclamp() {
+clone_and_sync_barclamp() {
     # $1 = name of the barclamp
     local repo remote build head urlbase
-    [[ -d $CROWBAR_DIR/barclamps/$1/.git || \
-	-f $CROWBAR_DIR/barclamps/$1/.git ]] && return 0
-    repo="barclamp-$1"
-    for remote in $(sorted_remotes); do
-	urlbase="$(remote_urlbase "$remote")"
-	test_remote "$urlbase/$repo.git" || continue
-	if [[ $urlbase =~ $github_re ]] && remote_available personal; then
+    if ! [[ -d $CROWBAR_DIR/barclamps/$1/.git || \
+	-f $CROWBAR_DIR/barclamps/$1/.git ]]; then
+        repo="barclamp-$1"
+        remote=$(find_origin_remote_for_barclamp "$1") || \
+            die "Cannot find a remote that has $repo!"
+        urlbase="$(remote_urlbase "$remote")"
+        if [[ $urlbase =~ $github_re ]] && remote_available personal; then
 	    # test to see if we need to fork this barclamp at Github
 	    github_repo_exists "$repo" || fork_barclamp "$remote" "$1" || \
-		die "Unable to fork $repo on Github. clone_barclamp giving up."
-	fi
-	in_repo git clone "$urlbase/$repo.git" "barclamps/$1" || {
+	        die "Unable to fork $repo on Github. clone_barclamp giving up."
+        fi
+        in_repo git clone "$urlbase/$repo.git" "barclamps/$1" || {
 	    rm -rf "$CROWBAR_DIR/barclamps/$1"
 	    die "Unable to clone barclamp $bc from $urlbase/$repo.git"
-	}
-	sync_barclamp_remotes "$1"
-	in_barclamp "$1" git remote rm origin
-	in_barclamp "$1" update_tracking_branches
-	in_barclamp "$1" quiet_checkout master
-	return
+        }
+    fi
+    sync_barclamp_remotes "$1"
+    in_barclamp "$1" git_remote_exists origin && in_barclamp "$1" git remote rm origin
+    in_barclamp "$1" update_tracking_branches
+}
+
+clone_barclamps() {
+    # $@ = barclamps to clone.  If none are passed, defaults to missing ones.
+    local barclamps=() bc
+    [[ $@ ]] && barclamps=("$@") || barclamps=($(find_missing_barclamps))
+    for bc in "${barclamps[@]}"; do
+        clone_barclamp "$bc"
     done
-    die "Asked to clone $1, but could not!"
 }
 
 # Check out a branch, but be quiet about it unless something goes wrong.
@@ -859,18 +917,9 @@ setup() {
 	in_repo git config crowbar.backup.$(origin_remote).method remote
 	in_repo git config crowbar.backup.$(origin_remote).remote personal
     fi
-    for bc in $(all_barclamps); do
-	if [[ -d $CROWBAR_DIR/barclamps/$bc/.git || \
-	    -f $CROWBAR_DIR/barclamps/$bc/.git ]]; then
-	    debug "Syncing remotes for $bc"
-	    sync_barclamp_remotes "$bc"
-	else
-	    debug "Performing initial clone of barclamp $bc"
-	    clone_barclamp "$bc"
-	fi
-    done
-    in_repo git config crowbar.dev.version "$DEV_VERSION"
     flatten_crowbar
+    clone_barclamps
+    in_repo git config crowbar.dev.version "$DEV_VERSION"
 }
 
 # Test repository $1 to see if commit $2 is in sync with $3.
@@ -1148,35 +1197,41 @@ dev_short_help() {
     cat <<EOF
 $0: Development helper for Crowbar
 
-setup:              Sets up a Crowbar checkout for use with dev.
-is_clean:           Test to see if all work is committed.
-fetch:              Fetch updates from configured upstream repositories.
-remote:             Manage remotes across all Crowbar repositories.
 backup:             Back up changes without merging them into upstream.
-sync:               Synchronize fetched updates with the local repos.
-push:               Unconditionally push a branch to your personal repos.
-pull-requests-prep: Prepare to issue pull requests.
+barclamps-in-build: Shows the barclamps that are members of a build.
+build:              Show the current build or build Crowbar
+builds:             Show the builds in the current release.
+checkout:           Check out a branch in the current release.
+clear-unit-tests:   Remove unit test environment.
+create-barclamp:    Create a new barclamp.
+current-build:      Shows the current build you are working on.
+cut_release:        Cut a new release from the current one.
+erase-feature:      Forget about branches for a feature you are not working on.
+fetch:              Fetch updates from configured upstream repositories.
+find-parent:        Find the closest parent of a release or feature.
+flatten:            Flatten the main Crowbar repo branching structure.
+help:               Show detailed help.
+is_clean:           Test to see if all work is committed.
+missing-barclamps:  Show missing barclamps.
+new-feature:        Create a new feature bundle from the current release.
+orphaned-barclamps: Show barclamps that are not part of any build.
+pin:                Pin a release, build, or barclamp in a build to a specific rev
 pull-requests-gen:  Issue pull requests.
+pull-requests-prep: Prepare to issue pull requests.
+push:               Unconditionally push a branch to your personal repos.
+refresh-tracking:   Update git branch tracking metadata.
 release:            Show the current release or feature you are on.
 releases:           Show all releases and features in your local repos.
-builds:             Show the builds in the current release.
-current-build:      Shows the current build you are working on.
-barclamps-in-build: Shows the barclamps that are members of a build.
-switch:             Switch to a different release.
-checkout:           Check out a branch in the current release.
-build:              build Crowbar.
-cut_release:        Cut a new release from the current one.
-new-feature:        Create a new feature bundle from the current release.
-erase-feature:      Forget about branches for a feature you are not working on.
-find-parent:        Find the closest parent of a release or feature.
+reload-unit-tests:  Reload the data for the unit test environment
+remote:             Manage remotes across all Crowbar repositories.
 reset-release:      Resets a release to upstream or your last backup.
-pin:                Pin a release, build, or barclamp in a build to a specific rev
-unpin:              Unpin a release, build, or barclamp in a build.
+run-unit-tests:     Run unit and BDD tests
 scrub-merged-pulls: Scrub merged pull request branches.
 setup-unit-tests:   Sets up unit test environment
-reload-unit-tests:  Reload the data for the unit test environment
-run-unit-tests:     Run unit and BDD tests
-clear-unit-tests:   Remove unit test environment
+setup:              Sets up a Crowbar checkout for use with dev.
+switch:             Switch to a different release.
+sync:               Synchronize fetched updates with the local repos.
+unpin:              Unpin a release, build, or barclamp in a build.
 
 For more detailed help, use the "help" command or read README.dev-and-workflow.
 EOF
@@ -2034,14 +2089,69 @@ clear_unit_tests() {
   rm -rf /tmp/crowbar
 }
 
+create_barclamp() {
+    [[ -d $CROWBAR_DIR/barclamps/$1 ]] || \
+        die "Barclamp $1 already exists"
+    "$CROWBAR_DIR/extra/barclamp_create.rb" "$@" || exit 1
+    (   cd "$CROWBAR_DIR/barclamps/$1"
+        git init .
+        git add .
+        git commit -m "Initial commit"
+    )
+}
+
+erase_feature() { erase_release "feature/$1"; }
+
 in_repo origin_remote &>/dev/null || \
     [[ $1 = setup ]] || \
     die "Unable to find origin account, please run setup!"
+
+# Hash for handling command -> function mapping.
+DEV_COMMANDS["backup"]="backup_everything"
+DEV_COMMANDS["barclamps-in-build"]="barclamps_in_build"
+DEV_COMMANDS["branch"]="current_build"
+DEV_COMMANDS["build"]="build_crowbar"
+DEV_COMMANDS["builds"]="builds_in_release"
+DEV_COMMANDS["branches"]="builds_in_release"
+DEV_COMMANDS["checkout"]="checkout"
+DEV_COMMANDS["clear-unit-tests"]="clear_unit_tests"
+DEV_COMMANDS["clone-barclamps"]="clone_barclamps"
+DEV_COMMANDS["create-barclamp"]="create_barclamp"
+DEV_COMMANDS["current-build"]="current_build"
+DEV_COMMANDS["cut_release"]="cut_release"
+DEV_COMMANDS["erase-feature"]="erase_feature"
+DEV_COMMANDS["fetch"]="fetch_all"
+DEV_COMMANDS["find-parent"]="find_best_parent"
+DEV_COMMANDS["flatten"]="flatten_crowbar"
+DEV_COMMANDS["help"]="dev_help"
+DEV_COMMANDS["is_clean"]="crowbar_is_clean"
+DEV_COMMANDS["missing-barclamps"]="find_missing_barclamps"
+DEV_COMMANDS["new-feature"]="cut_feature"
+DEV_COMMANDS["orphaned-barclamps"]="find_orphaned_barclamps"
+DEV_COMMANDS["pin"]="pin_release"
+DEV_COMMANDS["pull-requests-gen"]="pull_requests_gen"
+DEV_COMMANDS["pull-requests-prep"]="pull_requests_prep"
+DEV_COMMANDS["purge-submodules"]="purge_submodule_metadata"
+DEV_COMMANDS["push"]="push_branches"
+DEV_COMMANDS["refresh-tracking"]="update_all_tracking_branches"
+DEV_COMMANDS["release"]="current_release"
+DEV_COMMANDS["releases"]="show_releases"
+DEV_COMMANDS["reload-unit-tests"]="reload_unit_tests"
+DEV_COMMANDS["remote"]="remote_wrapper"
+DEV_COMMANDS["reset-release"]="reset_release"
+DEV_COMMANDS["run-unit-tests"]="run_unit_tests"
+DEV_COMMANDS["scrub-merged-pulls"]="scrub_merged_pulls"
+DEV_COMMANDS["setup"]="setup"
+DEV_COMMANDS["setup-unit-tests"]="setup_unit_tests"
+DEV_COMMANDS["switch"]="switch_release"
+DEV_COMMANDS["sync"]="sync_everything"
+DEV_COMMANDS["unpin"]="unpin_release"
 
 # Handle some global option parsing.
 # This is mainly for --from and --to handling. 
 parse_opts_and_go() {
     local genargs=()
+    local dev_cmd
     while (( $# > 0)); do
 	case $1 in
 	    --from) shift
@@ -2059,51 +2169,15 @@ parse_opts_and_go() {
 	shift
     done
     set -- "${genargs[@]}"
-    case "$1" in
-        is_clean) shift; crowbar_is_clean "$@";;
-        fetch) shift; fetch_all "$@";;
-        sync) shift; sync_everything "$@";;
-        refresh-tracking) shift; update_all_tracking_branches "$@";;
-        setup) setup;;
-        backup) shift; backup_everything "$@";;
-        push) shift; push_branches "$@";;
-        pull-requests-prep) pull_requests_prep;;
-        pull-requests-gen) shift; pull_requests_gen "$@";;
-        help) dev_help;;
-        release) current_release;;
-        releases) show_releases;;
-        builds|branches) shift; builds_in_release "${1:-$(current_release)}";;
-        current-build) shift; current_build;;
-        barclamps-in-build) shift; barclamps_in_build "$@";;
-        cut_release) shift; cut_release "$@";;
-        new-feature) shift; cut_feature "$1";;
-        switch) shift; switch_release "$@";;
-        flatten) shift; flatten_crowbar "$@";;
-        purge-submodules) shift; purge_submodule_metadata;;
-        checkout) shift; checkout "$@";;
-        build) shift; build_crowbar "$@";;
-        remote) shift; remote_wrapper "$@";;
-        erase-feature) shift; erase_release "feature/$1";;
-        find-parent) shift; find_best_parent "$@";;
-        reset-release) shift; reset_release "$@";;
-        scrub-merged-pulls) shift; scrub_merged_pulls "$@";;
-        pin) shift; pin_release "$@";;
-        unpin) shift; unpin_release "$@";;
-        setup-unit-tests) setup_unit_tests;;
-        reload-unit-tests) reload_unit_tests;;
-        run-unit-tests) run_unit_tests;;
-        clear-unit-tests) clear_unit_tests;;
-        create-barclamp) shift
-            [[ -d $CROWBAR_DIR/barclamps/$1 ]] || \
-                die "Barclamp $1 already exists"
-            "$CROWBAR_DIR/extra/barclamp_create.rb" "$@" || exit 1
-            (   cd "$CROWBAR_DIR/barclamps/$1"
-                git init .
-                git add .
-                git commit -m "Initial commit"
-            );;
-        *) dev_short_help; exit 1;;
-    esac
+    dev_cmd="$1"
+    shift
+    if ! [[ $dev_cmd ]]; then
+        dev_short_help
+        exit 1
+    fi
+    [[ $(type -t "${DEV_COMMANDS[$dev_cmd]}") = "function" ]] || \
+        die "Command $dev_cmd is not implemented!"
+    ${DEV_COMMANDS[$dev_cmd]} "$@"
 }
 
 parse_opts_and_go "$@"
