@@ -209,10 +209,10 @@ with_build_lock() {
 # Test to see if Crowbar metadata for this release is tracked in
 # a seperate git repository, by convention checked out
 # in the releases directory.
-git_tracked_checkout() [[ -d $CROWBAR_DIR/releases/.git ]]
+git_tracked_checkout() [[ -d $CROWBAR_DIR/releases/.git && -d $CROWBAR/releases/development/master ]]
 
 # Test to see if we are using flat metadata in the releases directory.
-flat_checkout() { ! git_tracked_checkout && [[ -d $CROWBAR_DIR/releases ]]; }
+flat_checkout() { ! git_tracked_checkout && [[ -d $CROWBAR_DIR/releases/development/master ]]; }
 
 # Our general cleanup function.  It is called as a trap whenever the
 # build script exits, and it's job is to make sure we leave the local
