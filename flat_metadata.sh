@@ -134,7 +134,7 @@ set_parent_release() {
 
 # Performs any metadata-specific tasks that are needed to commit a
 # release metadata change.
-__relase_update() {
+__release_update() {
     in_repo git commit -m "${1:-Updating release metadata}" releases
 }
 
