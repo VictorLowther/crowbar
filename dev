@@ -2682,7 +2682,7 @@ cut_release() {
             br="$(barclamp_branch_for_build "$current_release/$build" "$bc")"
             [[ $br && $br != empty-branch ]] || continue
             in_barclamp "$bc" git branch -f --no-track "$new_branch" "$br"
-            set_barclamp_branch_for_build "$1/$build" "$bc" "$br"
+            set_barclamp_branch_for_build "$1/$build" "$bc" "$new_branch"
         done
     done
     [[ $1 = feature/* ]] && \
@@ -2697,7 +2697,7 @@ cut_release() {
         fi
     fi
     debug "$1 created."
-    debug "You can switch to it with $0 switch $1"
+    switch_release "$1"
 }
 
 # Test repository $1 to see if commit $2 is in sync with $3.
@@ -2978,6 +2978,7 @@ cut_tagged_release() {
             in_cache git branch "$rel_br" "$old_rel_br"
     fi
     __release_update "Cut tagged release $1"
+    switch_release "$1"
 }
 
 
