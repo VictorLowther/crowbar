@@ -2687,6 +2687,7 @@ cut_release() {
     done
     [[ $1 = feature/* ]] && \
         set_parent_release "$1" "$current_release"
+    (cd "$(release_cfg_dir "$1")"; git add .)
     __release_update
     if git_managed_cache && ! in_cache branch_exists "$new_branch"; then
         debug "Creating $new_branch for $1 in the build cache"
